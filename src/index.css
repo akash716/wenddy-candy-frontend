@@ -1,0 +1,122 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+}
+
+.pos {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+}
+
+.menu {
+  width: 65%;
+}
+
+.cart {
+  width: 35%;
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.flavour-section {
+  margin-bottom: 25px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #ddd;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.code {
+  font-size: 13px;
+  color: #666;
+}
+
+.price {
+  font-weight: bold;
+}
+
+.counter {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.counter button {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.done-btn {
+  margin-top: 15px;
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  background: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 6px;
+}
+.category-section h2 {
+  margin: 20px 0 10px;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 4px;
+}
+.admin-card {
+  background: #fff;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+}
+
+.admin-card input {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.admin-card button {
+  margin-top: 10px;
+}
+
+
+.offer-banner {
+  background: #fff7e6;
+  border: 1px solid #ffd27f;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.offer-banner h3 {
+  margin: 0 0 8px;
+  color: #d35400;
+}
+
+.offer-banner ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.offer-banner li {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
