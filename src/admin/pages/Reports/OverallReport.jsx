@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import api from "../../../api"; // ✅ axios instance (Render backend)
 
 export default function OverallReport({ startDate, endDate }) {
   const [rows, setRows] = useState([]);
@@ -6,11 +7,30 @@ export default function OverallReport({ startDate, endDate }) {
 
   const loadOverall = async () => {
     setLoading(true);
-    const res = await fetch(
-      `http://localhost:5000/api/admin/reports/overall/summary?start_date=${startDate}&end_date=${endDate}`
-    );
-    setRows(await res.json());
-    setLoading(false);
+    setRows([]);
+
+    try {
+      const res = await api.get(
+        "/admin/reports/overall/summary",
+        {
+          params: {
+            start_date: startDate,
+            end_date: endDate
+          }
+        }
+      );
+
+      setRows(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("OVERALL REPORT ERROR:", err);
+      alert(
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to load overall report"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,11 +55,15 @@ export default function OverallReport({ startDate, endDate }) {
               <tr key={i}>
                 <td>{r.company}</td>
                 <td>{r.total_bills}</td>
-                <td>₹{r.total_revenue}</td>
+                <td>₹{Number(r.total_revenue).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+
+      {!loading && rows.length === 0 && (
+        <p>No data found for selected period.</p>
       )}
     </div>
   );

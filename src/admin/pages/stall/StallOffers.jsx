@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import api from "../../../api"; // ✅ axios instance (Render backend)
 
 export default function StallOffers({ stallId }) {
   const [offers, setOffers] = useState([]);
@@ -10,16 +11,27 @@ export default function StallOffers({ stallId }) {
     if (!stallId) return;
 
     // 1️⃣ Load all offers
-    fetch("http://localhost:5000/api/admin/offers")
-      .then(res => res.json())
-      .then(setOffers);
+    api
+      .get("/admin/offers")
+      .then((res) => {
+        setOffers(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((err) => {
+        console.error("LOAD OFFERS ERROR:", err);
+        setOffers([]);
+      });
 
     // 2️⃣ Load already assigned offers for this stall
-    fetch(`http://localhost:5000/api/admin/stall-offers/${stallId}`)
-      .then(res => res.json())
-      .then(data => {
-        // data = [{ offer_id: 1 }, ...]
-        setSelected(data.map(o => o.offer_id));
+    api
+      .get(`/admin/stall-offers/${stallId}`)
+      .then((res) => {
+        // expected: [{ offer_id: 1 }, ...]
+        const data = Array.isArray(res.data) ? res.data : [];
+        setSelected(data.map((o) => o.offer_id));
+      })
+      .catch((err) => {
+        console.error("LOAD STALL OFFERS ERROR:", err);
+        setSelected([]);
       });
 
   }, [stallId]);
@@ -27,9 +39,9 @@ export default function StallOffers({ stallId }) {
   /* ---------------- TOGGLE ---------------- */
 
   const toggle = (id) => {
-    setSelected(prev =>
+    setSelected((prev) =>
       prev.includes(id)
-        ? prev.filter(x => x !== id)
+        ? prev.filter((x) => x !== id)
         : [...prev, id]
     );
   };
@@ -42,13 +54,20 @@ export default function StallOffers({ stallId }) {
       return;
     }
 
-    await fetch(`http://localhost:5000/api/admin/stall-offers/${stallId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ offerIds: selected })
-    });
+    try {
+      await api.post(`/admin/stall-offers/${stallId}`, {
+        offerIds: selected
+      });
 
-    alert("Offers assigned to stall");
+      alert("Offers assigned to stall successfully");
+    } catch (err) {
+      console.error("SAVE STALL OFFERS ERROR:", err);
+      alert(
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to assign offers"
+      );
+    }
   };
 
   /* ---------------- UI ---------------- */
@@ -59,7 +78,7 @@ export default function StallOffers({ stallId }) {
 
       {offers.length === 0 && <p>No offers created yet</p>}
 
-      {offers.map(o => (
+      {offers.map((o) => (
         <label key={o.id} style={{ display: "block" }}>
           <input
             type="checkbox"

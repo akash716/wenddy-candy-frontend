@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import api from "../../api"; // ✅ axios instance (Render backend)
 
 export default function useSalesmanConfig(stallId) {
   const [config, setConfig] = useState(null);
@@ -12,18 +13,11 @@ export default function useSalesmanConfig(stallId) {
 
     try {
       // 1️⃣ Load salesman config (STALL + EVENT + OFFERS)
-      const res = await fetch(
-        `http://localhost:5000/api/salesman/config/${stallId}`
-      );
+      const res = await api.get(`/salesman/config/${stallId}`);
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Config API failed");
-      }
+      const json = res.data;
 
-      const json = await res.json();
-
-      // 🔥 THIS IS CRITICAL
+      // 🔥 CRITICAL: normalize config
       setConfig({
         stall: json.stall,
         event: json.event,
@@ -34,12 +28,12 @@ export default function useSalesmanConfig(stallId) {
       setCandies(json.candies || []);
 
     } catch (err) {
-      console.error("useSalesmanConfig ERROR:", err.message);
+      console.error("useSalesmanConfig ERROR:", err);
       setConfig(null);
       setCandies([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../../api"; // ✅ axios instance (Render backend)
 
 export default function Stalls() {
   const [stalls, setStalls] = useState([]);
@@ -14,9 +15,13 @@ export default function Stalls() {
   /* ---------------- LOAD STALLS ---------------- */
 
   const loadStalls = async () => {
-    const res = await fetch("http://localhost:5000/api/admin/stalls");
-    const data = await res.json();
-    setStalls(data);
+    try {
+      const res = await api.get("/admin/stalls");
+      setStalls(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Load stalls error:", err);
+      setStalls([]);
+    }
   };
 
   useEffect(() => {
@@ -31,28 +36,34 @@ export default function Stalls() {
       return;
     }
 
-    await fetch("http://localhost:5000/api/admin/stalls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
-    });
+    try {
+      await api.post("/admin/stalls", form);
 
-    setForm({ name: "", company: "", location: "" });
-    loadStalls();
+      setForm({ name: "", company: "", location: "" });
+      loadStalls();
+    } catch (err) {
+      console.error("Create stall error:", err);
+      alert(
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to create stall"
+      );
+    }
   };
 
   /* ---------------- ACTIVATE / DEACTIVATE ---------------- */
 
   const toggleStatus = async (stall) => {
-    await fetch(`http://localhost:5000/api/admin/stalls/${stall.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await api.put(`/admin/stalls/${stall.id}`, {
         is_active: stall.is_active ? 0 : 1
-      })
-    });
+      });
 
-    loadStalls();
+      loadStalls();
+    } catch (err) {
+      console.error("Toggle status error:", err);
+      alert("Failed to update stall status");
+    }
   };
 
   /* ---------------- REMOVE (ARCHIVE) STALL ---------------- */
@@ -63,12 +74,13 @@ export default function Stalls() {
     );
     if (!ok) return;
 
-    await fetch(
-      `http://localhost:5000/api/admin/stalls/${stall.id}/archive`,
-      { method: "PUT" }
-    );
-
-    loadStalls();
+    try {
+      await api.put(`/admin/stalls/${stall.id}/archive`);
+      loadStalls();
+    } catch (err) {
+      console.error("Remove stall error:", err);
+      alert("Failed to remove stall");
+    }
   };
 
   /* ---------------- UI ---------------- */

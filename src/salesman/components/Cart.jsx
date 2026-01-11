@@ -1,4 +1,5 @@
 import React from "react";
+import api from "../../api"; // ✅ axios instance (Render backend)
 
 export default function Cart({
   cart = [],
@@ -12,82 +13,83 @@ export default function Cart({
   );
 
   const removeFromCart = (index) => {
-    setCart(prev => prev.filter((_, i) => i !== index));
+    setCart((prev) => prev.filter((_, i) => i !== index));
   };
 
- const checkout = async () => {
-  try {
-    if (!cart || cart.length === 0) {
-      alert("Cart is empty");
-      return;
-    }
+  const checkout = async () => {
+    try {
+      if (!cart || cart.length === 0) {
+        alert("Cart is empty");
+        return;
+      }
 
-    // 1️⃣ BUILD LINES PAYLOAD
-    const lines = cart.map(item => {
-      const isSingle = !item.items;
+      // 1️⃣ BUILD LINES PAYLOAD
+      const lines = cart.map((item) => {
+        const isSingle = !item.items;
 
-      // SINGLE
-      if (isSingle) {
+        // 🔹 SINGLE ITEM
+        if (isSingle) {
+          return {
+            type: "SINGLE",
+            price: Number(item.price),
+            items: [
+              {
+                candy_id: item.candy_id || item.id,
+                qty: 1
+              }
+            ]
+          };
+        }
+
+        // 🔸 COMBO ITEM
         return {
-          type: "SINGLE",
+          type: "COMBO",
+          offer_id: item.offer_id || item.id,
           price: Number(item.price),
-          items: [
-            {
-              candy_id: item.candy_id || item.id,
-              qty: 1
-            }
-          ]
+          items: item.items.map((c) => ({
+            candy_id: c.candy_id || c.id,
+            qty: 1
+          }))
         };
-      }
+      });
 
-      // COMBO
-      return {
-        type: "COMBO",
-        offer_id: item.offer_id || item.id,
-        price: Number(item.price),
-        items: item.items.map(c => ({
-          candy_id: c.candy_id || c.id,
-          qty: 1
-        }))
+      // 2️⃣ FINAL PAYLOAD
+      const payload = {
+        bill: {
+          total: cart.reduce(
+            (sum, i) => sum + Number(i.price || 0),
+            0
+          )
+        },
+        lines
       };
-    });
 
-    // 2️⃣ FINAL PAYLOAD
-    const payload = {
-      bill: {
-        total: cart.reduce(
-          (sum, i) => sum + Number(i.price || 0),
-          0
-        )
-      },
-      lines
-    };
+      console.log("CHECKOUT PAYLOAD:", payload);
 
-    console.log("CHECKOUT PAYLOAD:", payload); // 👈 DEBUG (keep once)
+      // 3️⃣ API CALL (RENDER BACKEND)
+      const res = await api.post(
+        `/salesman/${stallId}/sell`,
+        payload
+      );
 
-    // 3️⃣ SINGLE API CALL (FULL CHECKOUT)
-    const res = await fetch(
-      `http://localhost:5000/api/salesman/${stallId}/sell`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      if (!res.data) {
+        throw new Error("Checkout failed");
       }
-    );
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
+      alert("Sale completed successfully");
 
-    alert("Sale completed successfully");
+      setCart([]);
+      onSaleComplete?.();
 
-    setCart([]);
-    onSaleComplete?.();
-
-  } catch (err) {
-    console.error(err);
-    alert(err.message || "Checkout failed");
-  }
-};
+    } catch (err) {
+      console.error(err);
+      alert(
+        err.response?.data?.error ||
+        err.message ||
+        "Checkout failed"
+      );
+    }
+  };
 
   return (
     <div style={{ padding: 16, borderLeft: "1px solid #ddd", minWidth: 280 }}>
@@ -110,7 +112,7 @@ export default function Cart({
               background: "#fff"
             }}
           >
-            {/* ❌ REMOVE */}
+            {/* ❌ REMOVE BUTTON */}
             <button
               onClick={() => removeFromCart(idx)}
               style={{
@@ -127,7 +129,7 @@ export default function Cart({
               ✕
             </button>
 
-            {/* 🔹 SINGLE (SMALL, ONE LINE) */}
+            {/* 🔹 SINGLE ITEM */}
             {isSingle && (
               <div
                 style={{
@@ -146,14 +148,14 @@ export default function Cart({
               </div>
             )}
 
-            {/* 🔸 COMBO (NORMAL, MULTI LINE) */}
+            {/* 🔸 COMBO ITEM */}
             {!isSingle && (
               <>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>
                   {item.title}
                 </div>
                 <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>
-                  {item.items.map(i => i.name).join(", ")}
+                  {item.items.map((i) => i.name).join(", ")}
                 </div>
                 <div style={{ fontSize: 14, marginTop: 4 }}>
                   ₹{Number(item.price).toFixed(2)}

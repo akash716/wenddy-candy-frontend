@@ -1,16 +1,15 @@
-const API = "http://localhost:5000/api/salesman";
+import api from "../../api"; // adjust path if needed
 
 export const getAvailableCandies = async (stallId) => {
-  const res = await fetch(`${API}/${stallId}/candies`);
-  return res.json();
+  const res = await api.get(`/salesman/${stallId}/candies`);
+  return res.data;
 };
 
 export const sellCandy = async (stallId, candyId, qty) => {
-  const res = await fetch(`${API}/${stallId}/sell`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ candyId, qty }),
+  const res = await api.post(`/salesman/${stallId}/sell`, {
+    candyId,
+    qty,
   });
 
-  return res.json();
+  return res.data;
 };

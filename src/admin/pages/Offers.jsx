@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import api from "../../api"; // ✅ axios instance (Render backend)
 
 export default function Offers() {
   const [offers, setOffers] = useState([]);
@@ -14,14 +15,20 @@ export default function Offers() {
   /* ---------------- LOAD DATA ---------------- */
 
   const loadData = async () => {
-    const offersRes = await fetch("http://localhost:5000/api/admin/offers");
-    const offersData = await offersRes.json();
+    try {
+      const [offersRes, candiesRes] = await Promise.all([
+        api.get("/admin/offers"),
+        api.get("/admin/candies")
+      ]);
 
-    const candiesRes = await fetch("http://localhost:5000/api/admin/candies");
-    const candiesData = await candiesRes.json();
+      setOffers(Array.isArray(offersRes.data) ? offersRes.data : []);
+      setCandies(Array.isArray(candiesRes.data) ? candiesRes.data : []);
 
-    setOffers(offersData);
-    setCandies(candiesData);
+    } catch (err) {
+      console.error("Load offers error:", err);
+      setOffers([]);
+      setCandies([]);
+    }
   };
 
   useEffect(() => {
@@ -61,25 +68,24 @@ export default function Offers() {
       candyIds: selectedCandies
     };
 
-    if (editing) {
-      await fetch(
-        `http://localhost:5000/api/admin/offers/${editing.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        }
-      );
-    } else {
-      await fetch("http://localhost:5000/api/admin/offers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-    }
+    try {
+      if (editing) {
+        await api.put(`/admin/offers/${editing.id}`, payload);
+      } else {
+        await api.post("/admin/offers", payload);
+      }
 
-    resetForm();
-    loadData();
+      resetForm();
+      loadData();
+
+    } catch (err) {
+      console.error("Save offer error:", err);
+      alert(
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to save offer"
+      );
+    }
   };
 
   /* ---------------- UI ---------------- */

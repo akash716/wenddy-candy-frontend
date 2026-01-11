@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
+import api from "../../../api"; // ✅ axios instance (Render backend)
 import OverallReport from "./OverallReport";
 import Bills from "./Bills";
-
 
 export default function Reports() {
   /* ================= TAB ================= */
@@ -19,15 +19,16 @@ export default function Reports() {
   const [combos, setCombos] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [bills, setBills] = useState([]);
- 
 
   /* ================= LOAD STALLS ================= */
   useEffect(() => {
-    fetch("http://localhost:5000/api/admin/stalls")
-      .then(res => res.json())
-      .then(data => setStalls(data))
-      .catch(err => console.error("STALL LOAD ERROR:", err));
+    api
+      .get("/admin/stalls")
+      .then((res) => setStalls(Array.isArray(res.data) ? res.data : []))
+      .catch((err) => {
+        console.error("STALL LOAD ERROR:", err);
+        setStalls([]);
+      });
   }, []);
 
   /* ================= LOAD STALL REPORT ================= */
@@ -44,29 +45,61 @@ export default function Reports() {
     setInventory([]);
 
     try {
-      const summaryRes = await fetch(
-        `http://localhost:5000/api/admin/reports/stall/summary?stall_id=${stallId}&start_date=${startDate}&end_date=${endDate}`
+      /* ---------- SUMMARY ---------- */
+      const summaryRes = await api.get(
+        "/admin/reports/stall/summary",
+        {
+          params: {
+            stall_id: stallId,
+            start_date: startDate,
+            end_date: endDate
+          }
+        }
       );
-      setSummary(await summaryRes.json());
+      setSummary(summaryRes.data || null);
 
-      const candyRes = await fetch(
-        `http://localhost:5000/api/admin/reports/stall/candies?stall_id=${stallId}&start_date=${startDate}&end_date=${endDate}`
+      /* ---------- CANDIES ---------- */
+      const candyRes = await api.get(
+        "/admin/reports/stall/candies",
+        {
+          params: {
+            stall_id: stallId,
+            start_date: startDate,
+            end_date: endDate
+          }
+        }
       );
-      setCandies(await candyRes.json());
+      setCandies(Array.isArray(candyRes.data) ? candyRes.data : []);
 
-      const comboRes = await fetch(
-        `http://localhost:5000/api/admin/reports/stall/combos?stall_id=${stallId}&start_date=${startDate}&end_date=${endDate}`
+      /* ---------- COMBOS ---------- */
+      const comboRes = await api.get(
+        "/admin/reports/stall/combos",
+        {
+          params: {
+            stall_id: stallId,
+            start_date: startDate,
+            end_date: endDate
+          }
+        }
       );
-      setCombos(await comboRes.json());
+      setCombos(Array.isArray(comboRes.data) ? comboRes.data : []);
 
-      const inventoryRes = await fetch(
-        `http://localhost:5000/api/admin/reports/stall/inventory?stall_id=${stallId}`
+      /* ---------- INVENTORY ---------- */
+      const inventoryRes = await api.get(
+        "/admin/reports/stall/inventory",
+        {
+          params: { stall_id: stallId }
+        }
       );
-      setInventory(await inventoryRes.json());
+      setInventory(Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
 
     } catch (err) {
       console.error("REPORT ERROR:", err);
-      alert("Failed to load report");
+      alert(
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to load report"
+      );
     } finally {
       setLoading(false);
     }
@@ -100,22 +133,30 @@ export default function Reports() {
         </button>
       </div>
 
-      {/* ================= STALL REPORT (DEFAULT) ================= */}
+      {/* ================= STALL REPORT ================= */}
       {activeTab === "STALL" && (
         <>
           {/* FILTERS */}
           <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
-            <select value={stallId} onChange={e => setStallId(e.target.value)}>
+            <select value={stallId} onChange={(e) => setStallId(e.target.value)}>
               <option value="">Select Stall</option>
-              {stalls.map(stall => (
+              {stalls.map((stall) => (
                 <option key={stall.id} value={stall.id}>
                   {stall.name}
                 </option>
               ))}
             </select>
 
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
 
             <button onClick={loadReport}>Load Report</button>
           </div>
@@ -134,11 +175,11 @@ export default function Reports() {
                   </tr>
                   <tr>
                     <td>Total Revenue</td>
-                    <td>₹{summary.total_revenue || 0}</td>
+                    <td>₹{Number(summary.total_revenue || 0).toFixed(2)}</td>
                   </tr>
                   <tr>
                     <td>Average Bill</td>
-                    <td>₹{summary.avg_bill || 0}</td>
+                    <td>₹{Number(summary.avg_bill || 0).toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -217,9 +258,11 @@ export default function Reports() {
       )}
 
       {/* ================= OVERALL REPORT ================= */}
-      {activeTab === "OVERALL" && <OverallReport startDate={startDate} endDate={endDate} />}
+      {activeTab === "OVERALL" && (
+        <OverallReport startDate={startDate} endDate={endDate} />
+      )}
 
-      {/* ================= BILLS (LATER) ================= */}
+      {/* ================= BILLS ================= */}
       {activeTab === "BILLS" && <Bills />}
     </div>
   );
