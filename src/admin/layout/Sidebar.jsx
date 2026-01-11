@@ -23,7 +23,7 @@ export default function Sidebar() {
         padding: 16
       }}
     >
-      <h2 style={{ marginBottom: 20 }}>Wenddy Admin</h2>
+      <h2 style={{ marginBottom: 20 }}>Vendi Admin</h2>
 
       {menu.map(item => (
         <NavLink
