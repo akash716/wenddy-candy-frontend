@@ -7,8 +7,8 @@ import Dashboard from "./pages/Dashboard";
 import Stalls from "./pages/Stalls";
 import Candies from "./pages/Candies";
 import Events from "./pages/Events";
-import EventAssignment from "./pages/EventAssignment";
-import EventCandies from "./pages/EventCandies";
+// import EventAssignment from "./pages/EventAssignment";
+// import EventCandies from "./pages/EventCandies";
 import Offers from "./pages/Offers";
 import Inventory from "./pages/Inventory";
 import Reports from "./pages/Reports/Reports";
@@ -29,8 +29,8 @@ export default function AdminApp() {
             <Route path="/stalls" element={<Stalls />} />
             <Route path="/candies" element={<Candies />} />
             <Route path="/events" element={<Events />} />
-            <Route path="/assign-events" element={<EventAssignment />} />
-            <Route path="/event-candies" element={<EventCandies />} />
+            {/* <Route path="/assign-events" element={<EventAssignment />} />
+            <Route path="/event-candies" element={<EventCandies />} /> */}
             <Route path="/offers" element={<Offers />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/reports" element={<Reports />} />
