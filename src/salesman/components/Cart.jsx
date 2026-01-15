@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import api from "../../api";
 
 export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
   const [finalTotal, setFinalTotal] = useState(null);
@@ -8,8 +9,8 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
      🔥 FIND COMBO PRICES
   ========================= */
   const comboPrices = cart
-    .filter(l => l.type === "COMBO")
-    .map(l => Number(l.price));
+    .filter((l) => l.type === "COMBO")
+    .map((l) => Number(l.price));
 
   /* =========================
      🔥 PREVIEW (BACKEND TRUTH)
@@ -21,17 +22,16 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
         return;
       }
 
-      const res = await fetch(
-        "http://localhost:5000/api/salesman/preview",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lines: cart })
-        }
-      );
+      try {
+        const res = await api.post("/salesman/preview", {
+          lines: cart,
+        });
 
-      const data = await res.json();
-      setFinalTotal(Number(data.total));
+        setFinalTotal(Number(res.data.total));
+      } catch (err) {
+        console.error("PREVIEW ERROR:", err);
+        setFinalTotal(null);
+      }
     };
 
     preview();
@@ -44,25 +44,29 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
      🔥 CHECKOUT
   ========================= */
   const checkout = async () => {
+    if (!stallId) {
+      alert("Stall not selected");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const res = await fetch(
-        `http://localhost:5000/api/salesman/${stallId}/sell`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lines: cart })
-        }
+      const res = await api.post(
+        `/salesman/${stallId}/sell`,
+        { lines: cart }
       );
 
-      const data = await res.json();
-      alert(`✅ Sale completed\nBill: ₹${data.total}`);
+      alert(`✅ Sale completed\nBill: ₹${res.data.total}`);
 
       setCart([]);
       onSaleComplete?.();
-    } catch (e) {
-      alert(e.message);
+    } catch (err) {
+      console.error("CHECKOUT ERROR:", err);
+      alert(
+        err.response?.data?.error ||
+          "Failed to complete sale"
+      );
     } finally {
       setLoading(false);
     }

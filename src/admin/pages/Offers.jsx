@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-const API_BASE = "http://localhost:5000";
+import api from "../../api";
 
 export default function Offers() {
   const [offers, setOffers] = useState([]);
@@ -8,26 +7,25 @@ export default function Offers() {
 
   const [comboSize, setComboSize] = useState(2);
   const [offerPrice, setOfferPrice] = useState("");
-  const [priceOn, setPriceOn] = useState(""); // 🔥 candy price
+  const [priceOn, setPriceOn] = useState("");
   const [selectedCandies, setSelectedCandies] = useState([]);
-
   const [editing, setEditing] = useState(null);
 
   /* ---------------- LOAD DATA ---------------- */
 
   const loadData = async () => {
-    const offersRes = await fetch(
-      `${API_BASE}/api/admin/combo-offer-rules`
-    );
-    const offersData = await offersRes.json();
+    try {
+      const [offersRes, candiesRes] = await Promise.all([
+        api.get("/admin/combo-offer-rules"),
+        api.get("/admin/candies"),
+      ]);
 
-    const candiesRes = await fetch(
-      `${API_BASE}/api/admin/candies`
-    );
-    const candiesData = await candiesRes.json();
-
-    setOffers(offersData.rules || []);
-    setCandies(candiesData || []);
+      setOffers(offersRes.data.rules || []);
+      setCandies(candiesRes.data || []);
+    } catch (err) {
+      console.error("LOAD OFFERS ERROR:", err);
+      alert("Failed to load offers");
+    }
   };
 
   useEffect(() => {
@@ -55,66 +53,53 @@ export default function Offers() {
   /* ---------------- SAVE ---------------- */
 
   const saveOffer = async () => {
-    if (
-      !offerPrice ||
-      !priceOn ||
-      selectedCandies.length < comboSize
-    ) {
-      alert(`Fill all fields correctly`);
+    if (!offerPrice || !priceOn || selectedCandies.length < comboSize) {
+      alert("Fill all fields correctly");
       return;
     }
 
     const payload = {
       unique_count: comboSize,
       offer_price: Number(offerPrice),
-      price: Number(priceOn), // 🔥 IMPORTANT
+      price: Number(priceOn),
       candy_ids: selectedCandies,
       valid_from: null,
-      valid_to: null
+      valid_to: null,
     };
 
-    if (editing) {
-      await fetch(
-        `${API_BASE}/api/admin/combo-offer-rules/${editing.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-             offer_price: payload.offer_price,
-            valid_from: null,
-            valid_to: null,
-            candy_ids: selectedCandies   // 🔥 REQUIRED
-          })
-        }
-      );
+    try {
+      if (editing) {
+        await api.put(`/admin/combo-offer-rules/${editing.id}`, {
+          offer_price: payload.offer_price,
+          valid_from: null,
+          valid_to: null,
+          candy_ids: selectedCandies,
+        });
+      } else {
+        await api.post("/admin/combo-offer-rules", payload);
+      }
 
-    } else {
-      await fetch(
-        `${API_BASE}/api/admin/combo-offer-rules`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        }
-      );
+      resetForm();
+      loadData();
+    } catch (err) {
+      console.error("SAVE OFFER ERROR:", err);
+      alert("Failed to save offer");
     }
-
-    resetForm();
-    loadData();
   };
 
   /* ---------------- TOGGLE ACTIVE ---------------- */
 
   const toggleStatus = async (offer) => {
-    await fetch(
-      `${API_BASE}/api/admin/combo-offer-rules/${offer.id}/status`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !offer.is_active })
-      }
-    );
-    loadData();
+    try {
+      await api.patch(
+        `/admin/combo-offer-rules/${offer.id}/status`,
+        { is_active: !offer.is_active }
+      );
+      loadData();
+    } catch (err) {
+      console.error("STATUS UPDATE ERROR:", err);
+      alert("Failed to update status");
+    }
   };
 
   /* ---------------- DELETE RULE ---------------- */
@@ -123,12 +108,13 @@ export default function Offers() {
     const ok = window.confirm("Delete this combo rule?");
     if (!ok) return;
 
-    await fetch(
-      `${API_BASE}/api/admin/combo-offer-rules/${id}`,
-      { method: "DELETE" }
-    );
-
-    loadData();
+    try {
+      await api.delete(`/admin/combo-offer-rules/${id}`);
+      loadData();
+    } catch (err) {
+      console.error("DELETE ERROR:", err);
+      alert("Failed to delete rule");
+    }
   };
 
   /* ---------------- UI ---------------- */
@@ -137,14 +123,8 @@ export default function Offers() {
     <div style={{ padding: 20 }}>
       <h2>Combo Offer Rules</h2>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 24
-        }}
-      >
-        {/* ================= LEFT ================= */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        {/* LEFT */}
         <div style={card}>
           <h3>{editing ? "Edit Combo Rule" : "Create Combo Rule"}</h3>
 
@@ -185,13 +165,11 @@ export default function Offers() {
                   style={{
                     ...candyCard,
                     background: selected ? "#000" : "#fff",
-                    color: selected ? "#fff" : "#000"
+                    color: selected ? "#fff" : "#000",
                   }}
                 >
                   <strong>{c.name}</strong>
-                  <div style={{ fontSize: 12 }}>
-                    ₹{c.price}
-                  </div>
+                  <div style={{ fontSize: 12 }}>₹{c.price}</div>
                 </div>
               );
             })}
@@ -203,17 +181,14 @@ export default function Offers() {
             </button>
 
             {editing && (
-              <button
-                style={{ marginLeft: 10 }}
-                onClick={resetForm}
-              >
+              <button style={{ marginLeft: 10 }} onClick={resetForm}>
                 Cancel
               </button>
             )}
           </div>
         </div>
 
-        {/* ================= RIGHT ================= */}
+        {/* RIGHT */}
         <div>
           <h3>Existing Combo Rules</h3>
 
@@ -228,12 +203,11 @@ export default function Offers() {
               <div>Offer Price: ₹{o.offer_price}</div>
 
               <div style={{ fontSize: 13, marginTop: 6 }}>
-                Candies: {o.candies?.map(c => c.name).join(", ")}
+                Candies: {o.candies?.map((c) => c.name).join(", ")}
               </div>
 
               <div style={{ marginTop: 8 }}>
-                Status:{" "}
-                <b>{o.is_active ? "ACTIVE" : "INACTIVE"}</b>
+                Status: <b>{o.is_active ? "ACTIVE" : "INACTIVE"}</b>
               </div>
 
               <div style={{ marginTop: 10 }}>
@@ -243,18 +217,13 @@ export default function Offers() {
                     setComboSize(o.unique_count);
                     setOfferPrice(o.offer_price);
                     setPriceOn(o.price);
-                    setSelectedCandies(
-                      o.candies.map((c) => c.id)
-                    );
+                    setSelectedCandies(o.candies.map((c) => c.id));
                   }}
                 >
                   Edit
                 </button>
 
-                <button
-                  style={{ marginLeft: 8 }}
-                  onClick={() => toggleStatus(o)}
-                >
+                <button style={{ marginLeft: 8 }} onClick={() => toggleStatus(o)}>
                   {o.is_active ? "Disable" : "Enable"}
                 </button>
 
@@ -278,19 +247,19 @@ export default function Offers() {
 const card = {
   border: "1px solid #ddd",
   borderRadius: 6,
-  padding: 16
+  padding: 16,
 };
 
 const input = {
   width: "100%",
   padding: 8,
-  marginBottom: 10
+  marginBottom: 10,
 };
 
 const candyGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(3, 1fr)",
-  gap: 10
+  gap: 10,
 };
 
 const candyCard = {
@@ -298,12 +267,12 @@ const candyCard = {
   borderRadius: 6,
   padding: 10,
   cursor: "pointer",
-  textAlign: "center"
+  textAlign: "center",
 };
 
 const offerCard = {
   border: "1px solid #ddd",
   borderRadius: 6,
   padding: 14,
-  marginBottom: 12
+  marginBottom: 12,
 };

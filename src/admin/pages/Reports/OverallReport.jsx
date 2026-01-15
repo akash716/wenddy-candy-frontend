@@ -1,23 +1,40 @@
 import React, { useState } from "react";
+import api from "../../../api"; // 👈 path adjust if needed
 
 export default function OverallReport({ startDate, endDate }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  /* ================= LOAD OVERALL REPORT ================= */
   const loadOverall = async () => {
     setLoading(true);
-    const res = await fetch(
-      `http://localhost:5000/api/admin/reports/overall/summary?start_date=${startDate}&end_date=${endDate}`
-    );
-    setRows(await res.json());
-    setLoading(false);
+    try {
+      const res = await api.get(
+        "/admin/reports/overall/summary",
+        {
+          params: {
+            start_date: startDate,
+            end_date: endDate
+          }
+        }
+      );
+
+      setRows(res.data || []);
+    } catch (err) {
+      console.error("OVERALL REPORT ERROR:", err);
+      alert("Failed to load overall report");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div>
       <h3>🏢 Overall Reports</h3>
 
-      <button onClick={loadOverall}>Load Overall Report</button>
+      <button onClick={loadOverall}>
+        Load Overall Report
+      </button>
 
       {loading && <p>Loading...</p>}
 

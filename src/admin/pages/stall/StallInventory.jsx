@@ -1,21 +1,34 @@
 import React, { useEffect, useState } from "react";
+import api from "../../../api";
 
 export default function StallInventory({ stallId }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  /* ================= LOAD INVENTORY ================= */
   useEffect(() => {
-    fetch(`http://localhost:5000/api/admin/inventory/${stallId}`)
-      .then(res => res.json())
-      .then(data => {
-        setItems(data || []);
+    if (!stallId) return;
+
+    const loadInventory = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get(`/admin/inventory/${stallId}`);
+        setItems(res.data || []);
+      } catch (err) {
+        console.error("INVENTORY LOAD ERROR:", err);
+        alert("Failed to load inventory");
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    loadInventory();
   }, [stallId]);
 
+  /* ================= HANDLE CHANGE ================= */
   const handleChange = (candyId, value) => {
-    setItems(prev =>
-      prev.map(i =>
+    setItems((prev) =>
+      prev.map((i) =>
         i.candy_id === candyId
           ? { ...i, stock: value }
           : i
@@ -23,17 +36,19 @@ export default function StallInventory({ stallId }) {
     );
   };
 
+  /* ================= SAVE STOCK ================= */
   const saveStock = async (candyId, stock) => {
-    await fetch(`http://localhost:5000/api/admin/inventory/${stallId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await api.post(`/admin/inventory/${stallId}`, {
         candyId,
-        stock: Number(stock)
-      })
-    });
+        stock: Number(stock),
+      });
 
-    alert("Stock updated");
+      alert("Stock updated");
+    } catch (err) {
+      console.error("STOCK UPDATE ERROR:", err);
+      alert("Failed to update stock");
+    }
   };
 
   if (loading) return <p>Loading inventory...</p>;
@@ -53,7 +68,7 @@ export default function StallInventory({ stallId }) {
         </thead>
 
         <tbody>
-          {items.map(i => (
+          {items.map((i) => (
             <tr key={i.candy_id}>
               <td>{i.name}</td>
               <td>₹{i.price}</td>
@@ -62,7 +77,7 @@ export default function StallInventory({ stallId }) {
                   type="number"
                   min="0"
                   value={i.stock}
-                  onChange={e =>
+                  onChange={(e) =>
                     handleChange(i.candy_id, e.target.value)
                   }
                 />

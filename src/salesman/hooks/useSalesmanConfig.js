@@ -1,5 +1,6 @@
 // src/hooks/useSalesmanConfig.js
 import { useEffect, useState } from "react";
+import api from "../../api";
 
 export default function useSalesmanConfig(stallId) {
   const [config, setConfig] = useState(null);
@@ -8,36 +9,38 @@ export default function useSalesmanConfig(stallId) {
 
   const loadAll = async () => {
     if (!stallId) return;
+
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `http://localhost:5000/api/salesman/config/${stallId}`
-      );
+      const res = await api.get(`/salesman/config/${stallId}`);
 
-      if (!res.ok) throw new Error("Failed to load config");
-
-      const json = await res.json();
+      const json = res.data;
 
       setConfig({
         stall: json.stall,
         event: json.event,
-        offers: json.offers || []
+        offers: json.offers || [],
       });
 
       setCandies(json.candies || []);
     } catch (err) {
-      console.error("useSalesmanConfig ERROR:", err.message);
+      console.error("useSalesmanConfig ERROR:", err);
       setConfig(null);
       setCandies([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
     loadAll();
   }, [stallId]);
 
-  return { config, candies, reloadCandies: loadAll, loading };
+  return {
+    config,
+    candies,
+    reloadCandies: loadAll,
+    loading,
+  };
 }
