@@ -1,18 +1,71 @@
+/* ===============================
+   🌈 BASE THEME VARIABLES
+================================ */
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ---- LIGHT THEME (DEFAULT) ---- */
+  --bg-main: #ffffff;
+  --panel-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-selected: #000000;
+
+  --text-primary: #111111;
+  --text-muted: #555555;
+
+  --border-color: #cccccc;
+
+  --btn-primary: #000000;
+  --btn-disabled: #e0e0e0;
+
+  --offer-bg: #e8f5e9;
+  --offer-text: #1b5e20;
+
+  --danger: #d32f2f;
+
+  color: var(--text-primary);
+  background-color: var(--bg-main);
 }
 
+/* ===============================
+   🌙 DARK THEME (AUTO)
+================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: #121212;
+    --panel-bg: #181818;
+    --card-bg: #1e1e1e;
+    --card-selected: #333333;
+
+    --text-primary: #f5f5f5;
+    --text-muted: #aaaaaa;
+
+    --border-color: #333333;
+
+    --btn-primary: #4f8cff;
+    --btn-disabled: #2a2a2a;
+
+    --offer-bg: #1f3d2b;
+    --offer-text: #9ef0c3;
+
+    --danger: #ff6b6b;
+
+    color: var(--text-primary);
+    background-color: var(--bg-main);
+  }
+}
+
+/* ===============================
+   🔗 LINKS
+================================ */
 a {
   font-weight: 500;
   color: #646cff;
@@ -22,19 +75,20 @@ a:hover {
   color: #535bf2;
 }
 
+/* ===============================
+   🧱 LAYOUT
+================================ */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--bg-main);
+  color: var(--text-primary);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
+/* ===============================
+   🔘 BUTTONS (GLOBAL)
+================================ */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -42,27 +96,40 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+
+  background-color: var(--btn-primary);
+  color: #ffffff;
+
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  transition: all 0.25s ease;
 }
 
-@media (prefers-color-scheme: light) {
+button:hover {
+  opacity: 0.9;
+}
+
+button:disabled {
+  background-color: var(--btn-disabled);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 3px solid #646cff;
+}
+
+
+:root {
+  --card-bg: #ffffff;
+  --card-selected: #f2f2f2; /* light selected */
+  --text-primary: #111;
+}
+
+@media (prefers-color-scheme: dark) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
+    --card-bg: #1e1e1e;
+    --card-selected: #2a2a2a; /* dark but readable */
+    --text-primary: #f5f5f5;
   }
 }

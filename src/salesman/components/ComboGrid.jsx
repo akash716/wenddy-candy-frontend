@@ -6,7 +6,11 @@ export default function ComboGrid({
   onSelect
 }) {
   if (!offers.length) {
-    return <p>No combo offers available</p>;
+    return (
+      <p style={{ color: "var(--text-muted)" }}>
+        No combo offers available
+      </p>
+    );
   }
 
   return (
@@ -15,15 +19,15 @@ export default function ComboGrid({
         <div key={offer.id}>
           {/* ===== OFFER HEADER ===== */}
           <div style={{ marginBottom: 10 }}>
-            <strong>
+            <strong style={{ color: "var(--text-primary)" }}>
               Pick {offer.unique_count} chocolates @ ₹{offer.price}
             </strong>
-            <div style={{ fontSize: 13, color: "#555" }}>
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
               Offer ₹{offer.offer_price}
             </div>
           </div>
 
-          {/* ===== SAME LAYOUT AS SINGLE GRID ===== */}
+          {/* ===== GRID ===== */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
             {offer.candies.map((c) => {
               const selected = selectedIds.includes(c.id);
@@ -31,31 +35,33 @@ export default function ComboGrid({
 
               return (
                 <div
-                  key={c.id}
-                  onClick={() => {
-                    if (!outOfStock) onSelect(c, offer);
-                  }}
-                  style={{
-                    border: "1px solid #ccc",
-                    padding: 12,
-                    borderRadius: 6,
-                    width: 180,
-                    background: selected ? "#000" : "#fff",
-                    color: selected ? "#fff" : "#000",
-                    cursor: outOfStock ? "not-allowed" : "pointer",
-                    opacity: outOfStock ? 0.4 : 1
-                  }}
-                >
-                  <strong>{c.name}</strong>
-                  <div>₹{Number(c.price).toFixed(2)}</div>
-                  <div>Stock: {c.stock ?? 0}</div>
+  key={c.id}
+  onClick={() => {
+    if (!outOfStock) onSelect(c, offer);
+  }}
+  style={{
+    border: selected
+      ? "2px solid var(--btn-primary)"
+      : "1px solid var(--border-color)",
+    padding: 12,
+    borderRadius: 8,
+    width: 180,
+    background: selected
+      ? "var(--card-selected)"
+      : "var(--card-bg)",
+    color: "var(--text-primary)",
+    cursor: outOfStock ? "not-allowed" : "pointer",
+    opacity: outOfStock ? 0.5 : 1,
+    transition: "all 0.2s ease"
+  }}
+>
+  <strong>{c.name}</strong>
+  <div>₹{Number(c.price).toFixed(2)}</div>
+  <div style={{ fontSize: 13 }}>
+    Stock: {c.stock ?? 0}
+  </div>
+</div>
 
-                  {outOfStock && (
-                    <div style={{ fontSize: 12, color: "red", marginTop: 4 }}>
-                      Out of stock
-                    </div>
-                  )}
-                </div>
               );
             })}
           </div>

@@ -73,19 +73,51 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
   };
 
   /* =========================
-     🔥 RENDER
+     🔥 RENDER (UI ONLY)
   ========================= */
   return (
-    <div style={{ padding: 16 }}>
-      <h3>🛒 Cart</h3>
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 12,
+        border: "1px solid var(--border-color)",
+        background: "var(--panel-bg)",
+        width: 300
+      }}
+    >
+      <h3 style={{ marginBottom: 10 }}>🛒 Cart</h3>
+
+      {/* ✅ OFFER APPLIED (UI ONLY) */}
+      {cart.some((l) => l.type === "COMBO") && (
+        <div
+          style={{
+            fontSize: 12,
+            padding: "4px 8px",
+            borderRadius: 6,
+            background: "var(--offer-bg)",
+            color: "var(--offer-text)",
+            marginBottom: 12,
+            display: "inline-block"
+          }}
+        >
+          🎉 Offer Applied
+        </div>
+      )}
 
       {cart.map((line, i) => {
         /* ---------- COMBO ---------- */
         if (line.type === "COMBO") {
           return (
-            <div key={i} style={{ marginBottom: 8 }}>
-              <b>Combo Offer ₹{Number(line.price).toFixed(2)}</b>
-              <button onClick={() => removeLine(i)}>✕</button>
+            <div key={i} style={rowStyle}>
+              <strong>
+                Combo Offer ₹{Number(line.price).toFixed(2)}
+              </strong>
+              <button
+                onClick={() => removeLine(i)}
+                style={removeBtnStyle}
+              >
+                ✕
+              </button>
             </div>
           );
         }
@@ -100,22 +132,72 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
         }
 
         return (
-          <div key={i} style={{ marginBottom: 6 }}>
-            {it.name} ₹{itemPrice.toFixed(2)}
-            <button onClick={() => removeLine(i)}>✕</button>
+          <div key={i} style={rowStyle}>
+            <span>
+              {it.name} ₹{itemPrice.toFixed(2)}
+            </span>
+            <button
+              onClick={() => removeLine(i)}
+              style={removeBtnStyle}
+            >
+              ✕
+            </button>
           </div>
         );
       })}
 
-      <hr />
+      <hr style={{ margin: "12px 0", borderColor: "var(--border-color)" }} />
 
+      {/* ✅ TOTAL (UNCHANGED LOGIC, BETTER UI) */}
       {finalTotal !== null && (
-        <h3>Total ₹{finalTotal.toFixed(2)}</h3>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontWeight: 700,
+            marginBottom: 12
+          }}
+        >
+          <span>Total</span>
+          <span>₹{finalTotal.toFixed(2)}</span>
+        </div>
       )}
 
-      <button onClick={checkout} disabled={!cart.length || loading}>
+      <button
+        onClick={checkout}
+        disabled={!cart.length || loading}
+        style={{
+          width: "100%",
+          padding: 12,
+          borderRadius: 10,
+          fontWeight: 600
+        }}
+      >
         {loading ? "PROCESSING..." : "DONE"}
       </button>
     </div>
   );
 }
+
+/* =========================
+   🎨 UI-ONLY STYLES
+========================= */
+const rowStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 10
+};
+
+const removeBtnStyle = {
+  width: 28,
+  height: 28,
+  borderRadius: "50%",
+  border: "1px solid var(--border-color)",
+  background: "transparent",
+  color: "var(--danger)",
+  fontSize: 16,
+  lineHeight: "26px",
+  cursor: "pointer",
+  flexShrink: 0
+};
