@@ -1,5 +1,5 @@
+// src/hooks/useSalesmanConfig.js
 import { useEffect, useState } from "react";
-import api from "../../api"; // ✅ axios instance (Render backend)
 
 export default function useSalesmanConfig(stallId) {
   const [config, setConfig] = useState(null);
@@ -8,42 +8,36 @@ export default function useSalesmanConfig(stallId) {
 
   const loadAll = async () => {
     if (!stallId) return;
-
     setLoading(true);
 
     try {
-      // 1️⃣ Load salesman config (STALL + EVENT + OFFERS)
-      const res = await api.get(`/salesman/config/${stallId}`);
+      const res = await fetch(
+        `http://localhost:5000/api/salesman/config/${stallId}`
+      );
 
-      const json = res.data;
+      if (!res.ok) throw new Error("Failed to load config");
 
-      // 🔥 CRITICAL: normalize config
+      const json = await res.json();
+
       setConfig({
         stall: json.stall,
         event: json.event,
         offers: json.offers || []
       });
 
-      // 🔥 INVENTORY-AWARE CANDIES
       setCandies(json.candies || []);
-
     } catch (err) {
-      console.error("useSalesmanConfig ERROR:", err);
+      console.error("useSalesmanConfig ERROR:", err.message);
       setConfig(null);
       setCandies([]);
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
     loadAll();
   }, [stallId]);
 
-  return {
-    config,
-    candies,
-    reloadCandies: loadAll,
-    loading
-  };
+  return { config, candies, reloadCandies: loadAll, loading };
 }

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import api from "../../api"; // ✅ axios instance (Render backend)
+
+const API_BASE = "http://localhost:5000";
 
 export default function Offers() {
   const [offers, setOffers] = useState([]);
   const [candies, setCandies] = useState([]);
 
-  const [title, setTitle] = useState("");
   const [comboSize, setComboSize] = useState(2);
-  const [price, setPrice] = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
+  const [priceOn, setPriceOn] = useState(""); // 🔥 candy price
   const [selectedCandies, setSelectedCandies] = useState([]);
 
   const [editing, setEditing] = useState(null);
@@ -15,20 +16,18 @@ export default function Offers() {
   /* ---------------- LOAD DATA ---------------- */
 
   const loadData = async () => {
-    try {
-      const [offersRes, candiesRes] = await Promise.all([
-        api.get("/admin/offers"),
-        api.get("/admin/candies")
-      ]);
+    const offersRes = await fetch(
+      `${API_BASE}/api/admin/combo-offer-rules`
+    );
+    const offersData = await offersRes.json();
 
-      setOffers(Array.isArray(offersRes.data) ? offersRes.data : []);
-      setCandies(Array.isArray(candiesRes.data) ? candiesRes.data : []);
+    const candiesRes = await fetch(
+      `${API_BASE}/api/admin/candies`
+    );
+    const candiesData = await candiesRes.json();
 
-    } catch (err) {
-      console.error("Load offers error:", err);
-      setOffers([]);
-      setCandies([]);
-    }
+    setOffers(offersData.rules || []);
+    setCandies(candiesData || []);
   };
 
   useEffect(() => {
@@ -47,89 +46,132 @@ export default function Offers() {
 
   const resetForm = () => {
     setEditing(null);
-    setTitle("");
     setComboSize(2);
-    setPrice("");
+    setOfferPrice("");
+    setPriceOn("");
     setSelectedCandies([]);
   };
 
   /* ---------------- SAVE ---------------- */
 
   const saveOffer = async () => {
-    if (!title || !price || selectedCandies.length < comboSize) {
-      alert(`Select at least ${comboSize} candies`);
+    if (
+      !offerPrice ||
+      !priceOn ||
+      selectedCandies.length < comboSize
+    ) {
+      alert(`Fill all fields correctly`);
       return;
     }
 
     const payload = {
-      title,
-      combo_size: comboSize,
-      price,
-      candyIds: selectedCandies
+      unique_count: comboSize,
+      offer_price: Number(offerPrice),
+      price: Number(priceOn), // 🔥 IMPORTANT
+      candy_ids: selectedCandies,
+      valid_from: null,
+      valid_to: null
     };
 
-    try {
-      if (editing) {
-        await api.put(`/admin/offers/${editing.id}`, payload);
-      } else {
-        await api.post("/admin/offers", payload);
-      }
+    if (editing) {
+      await fetch(
+        `${API_BASE}/api/admin/combo-offer-rules/${editing.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+             offer_price: payload.offer_price,
+            valid_from: null,
+            valid_to: null,
+            candy_ids: selectedCandies   // 🔥 REQUIRED
+          })
+        }
+      );
 
-      resetForm();
-      loadData();
-
-    } catch (err) {
-      console.error("Save offer error:", err);
-      alert(
-        err.response?.data?.error ||
-        err.message ||
-        "Failed to save offer"
+    } else {
+      await fetch(
+        `${API_BASE}/api/admin/combo-offer-rules`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
       );
     }
+
+    resetForm();
+    loadData();
+  };
+
+  /* ---------------- TOGGLE ACTIVE ---------------- */
+
+  const toggleStatus = async (offer) => {
+    await fetch(
+      `${API_BASE}/api/admin/combo-offer-rules/${offer.id}/status`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !offer.is_active })
+      }
+    );
+    loadData();
+  };
+
+  /* ---------------- DELETE RULE ---------------- */
+
+  const deleteRule = async (id) => {
+    const ok = window.confirm("Delete this combo rule?");
+    if (!ok) return;
+
+    await fetch(
+      `${API_BASE}/api/admin/combo-offer-rules/${id}`,
+      { method: "DELETE" }
+    );
+
+    loadData();
   };
 
   /* ---------------- UI ---------------- */
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Offers / Combos</h2>
+      <h2>Combo Offer Rules</h2>
 
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: 24,
-          alignItems: "start"
+          gap: 24
         }}
       >
-        {/* ================= LEFT: CREATE / EDIT ================= */}
+        {/* ================= LEFT ================= */}
         <div style={card}>
-          <h3>{editing ? "Edit Combo Offer" : "Create Combo Offer"}</h3>
+          <h3>{editing ? "Edit Combo Rule" : "Create Combo Rule"}</h3>
 
           <input
             style={input}
-            placeholder="Offer Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            type="number"
+            min="1"
+            value={comboSize}
+            onChange={(e) => setComboSize(Number(e.target.value))}
+            placeholder="Combo Size"
           />
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <input
-              style={input}
-              type="number"
-              min="1"
-              value={comboSize}
-              onChange={(e) => setComboSize(Number(e.target.value))}
-              placeholder="Combo Size"
-            />
-            <input
-              style={input}
-              type="number"
-              placeholder="Price"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-          </div>
+          <input
+            style={input}
+            type="number"
+            placeholder="Candy Price (e.g. 65)"
+            value={priceOn}
+            onChange={(e) => setPriceOn(e.target.value)}
+          />
+
+          <input
+            style={input}
+            type="number"
+            placeholder="Offer Price"
+            value={offerPrice}
+            onChange={(e) => setOfferPrice(e.target.value)}
+          />
 
           <h4>Select Allowed Candies</h4>
 
@@ -147,7 +189,9 @@ export default function Offers() {
                   }}
                 >
                   <strong>{c.name}</strong>
-                  <div style={{ fontSize: 12 }}>₹{c.price}</div>
+                  <div style={{ fontSize: 12 }}>
+                    ₹{c.price}
+                  </div>
                 </div>
               );
             })}
@@ -155,7 +199,7 @@ export default function Offers() {
 
           <div style={{ marginTop: 16 }}>
             <button onClick={saveOffer}>
-              {editing ? "Update Offer" : "Save Offer"}
+              {editing ? "Update Rule" : "Save Rule"}
             </button>
 
             {editing && (
@@ -169,33 +213,58 @@ export default function Offers() {
           </div>
         </div>
 
-        {/* ================= RIGHT: EXISTING OFFERS ================= */}
+        {/* ================= RIGHT ================= */}
         <div>
-          <h3>Existing Offers</h3>
+          <h3>Existing Combo Rules</h3>
 
-          {offers.length === 0 && <p>No offers created yet</p>}
+          {offers.length === 0 && <p>No rules created yet</p>}
 
           {offers.map((o) => (
             <div key={o.id} style={offerCard}>
-              <strong>{o.title}</strong>
-              <div>Pick {o.combo_size} chocolates</div>
-              <div>Price: ₹{o.price}</div>
+              <strong>
+                Pick {o.unique_count} chocolates @ ₹{o.price}
+              </strong>
+
+              <div>Offer Price: ₹{o.offer_price}</div>
+
               <div style={{ fontSize: 13, marginTop: 6 }}>
-                Candies: {o.candies?.map((c) => c.name).join(", ")}
+                Candies: {o.candies?.map(c => c.name).join(", ")}
               </div>
 
-              <button
-                style={{ marginTop: 10 }}
-                onClick={() => {
-                  setEditing(o);
-                  setTitle(o.title);
-                  setComboSize(o.combo_size);
-                  setPrice(o.price);
-                  setSelectedCandies(o.candies.map((c) => c.id));
-                }}
-              >
-                Edit
-              </button>
+              <div style={{ marginTop: 8 }}>
+                Status:{" "}
+                <b>{o.is_active ? "ACTIVE" : "INACTIVE"}</b>
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                <button
+                  onClick={() => {
+                    setEditing(o);
+                    setComboSize(o.unique_count);
+                    setOfferPrice(o.offer_price);
+                    setPriceOn(o.price);
+                    setSelectedCandies(
+                      o.candies.map((c) => c.id)
+                    );
+                  }}
+                >
+                  Edit
+                </button>
+
+                <button
+                  style={{ marginLeft: 8 }}
+                  onClick={() => toggleStatus(o)}
+                >
+                  {o.is_active ? "Disable" : "Enable"}
+                </button>
+
+                <button
+                  style={{ marginLeft: 8, color: "white", background: "red" }}
+                  onClick={() => deleteRule(o.id)}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>

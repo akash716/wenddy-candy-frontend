@@ -1,186 +1,116 @@
-import React from "react";
-import api from "../../api"; // ✅ axios instance (Render backend)
+import React, { useEffect, useState } from "react";
 
-export default function Cart({
-  cart = [],
-  setCart,
-  stallId,
-  onSaleComplete
-}) {
-  const total = cart.reduce(
-    (sum, item) => sum + Number(item.price || 0),
-    0
-  );
+export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
+  const [finalTotal, setFinalTotal] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const removeFromCart = (index) => {
-    setCart((prev) => prev.filter((_, i) => i !== index));
-  };
+  /* =========================
+     🔥 FIND COMBO PRICES
+  ========================= */
+  const comboPrices = cart
+    .filter(l => l.type === "COMBO")
+    .map(l => Number(l.price));
 
-  const checkout = async () => {
-    try {
-      if (!cart || cart.length === 0) {
-        alert("Cart is empty");
+  /* =========================
+     🔥 PREVIEW (BACKEND TRUTH)
+  ========================= */
+  useEffect(() => {
+    const preview = async () => {
+      if (!cart.length) {
+        setFinalTotal(null);
         return;
       }
 
-      // 1️⃣ BUILD LINES PAYLOAD
-      const lines = cart.map((item) => {
-        const isSingle = !item.items;
-
-        // 🔹 SINGLE ITEM
-        if (isSingle) {
-          return {
-            type: "SINGLE",
-            price: Number(item.price),
-            items: [
-              {
-                candy_id: item.candy_id || item.id,
-                qty: 1
-              }
-            ]
-          };
+      const res = await fetch(
+        "http://localhost:5000/api/salesman/preview",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lines: cart })
         }
-
-        // 🔸 COMBO ITEM
-        return {
-          type: "COMBO",
-          offer_id: item.offer_id || item.id,
-          price: Number(item.price),
-          items: item.items.map((c) => ({
-            candy_id: c.candy_id || c.id,
-            qty: 1
-          }))
-        };
-      });
-
-      // 2️⃣ FINAL PAYLOAD
-      const payload = {
-        bill: {
-          total: cart.reduce(
-            (sum, i) => sum + Number(i.price || 0),
-            0
-          )
-        },
-        lines
-      };
-
-      console.log("CHECKOUT PAYLOAD:", payload);
-
-      // 3️⃣ API CALL (RENDER BACKEND)
-      const res = await api.post(
-        `/salesman/${stallId}/sell`,
-        payload
       );
 
-      if (!res.data) {
-        throw new Error("Checkout failed");
-      }
+      const data = await res.json();
+      setFinalTotal(Number(data.total));
+    };
 
-      alert("Sale completed successfully");
+    preview();
+  }, [cart]);
+
+  const removeLine = (i) =>
+    setCart(cart.filter((_, idx) => idx !== i));
+
+  /* =========================
+     🔥 CHECKOUT
+  ========================= */
+  const checkout = async () => {
+    try {
+      setLoading(true);
+
+      const res = await fetch(
+        `http://localhost:5000/api/salesman/${stallId}/sell`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lines: cart })
+        }
+      );
+
+      const data = await res.json();
+      alert(`✅ Sale completed\nBill: ₹${data.total}`);
 
       setCart([]);
       onSaleComplete?.();
-
-    } catch (err) {
-      console.error(err);
-      alert(
-        err.response?.data?.error ||
-        err.message ||
-        "Checkout failed"
-      );
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
+  /* =========================
+     🔥 RENDER
+  ========================= */
   return (
-    <div style={{ padding: 16, borderLeft: "1px solid #ddd", minWidth: 280 }}>
-      <h3>Cart</h3>
+    <div style={{ padding: 16 }}>
+      <h3>🛒 Cart</h3>
 
-      {cart.length === 0 && <p>No items added</p>}
+      {cart.map((line, i) => {
+        /* ---------- COMBO ---------- */
+        if (line.type === "COMBO") {
+          return (
+            <div key={i} style={{ marginBottom: 8 }}>
+              <b>Combo Offer ₹{Number(line.price).toFixed(2)}</b>
+              <button onClick={() => removeLine(i)}>✕</button>
+            </div>
+          );
+        }
 
-      {cart.map((item, idx) => {
-        const isSingle = !item.items;
+        /* ---------- ITEM ---------- */
+        const it = line.items[0];
+        const itemPrice = Number(it.price);
+
+        // 🔥 hide ONLY if same-price combo exists
+        if (comboPrices.includes(itemPrice)) {
+          return null;
+        }
 
         return (
-          <div
-            key={idx}
-            style={{
-              border: "1px solid #eee",
-              borderRadius: 6,
-              padding: isSingle ? "6px 8px" : "10px",
-              marginBottom: 8,
-              position: "relative",
-              background: "#fff"
-            }}
-          >
-            {/* ❌ REMOVE BUTTON */}
-            <button
-              onClick={() => removeFromCart(idx)}
-              style={{
-                position: "absolute",
-                right: 6,
-                top: 6,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                fontSize: 16,
-                color: "#ff4d6d"
-              }}
-            >
-              ✕
-            </button>
-
-            {/* 🔹 SINGLE ITEM */}
-            {isSingle && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingRight: 20
-                }}
-              >
-                <span style={{ fontSize: 14, fontWeight: 600 }}>
-                  {item.name}
-                </span>
-                <span style={{ fontSize: 14 }}>
-                  ₹{Number(item.price).toFixed(2)}
-                </span>
-              </div>
-            )}
-
-            {/* 🔸 COMBO ITEM */}
-            {!isSingle && (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>
-                  {item.title}
-                </div>
-                <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>
-                  {item.items.map((i) => i.name).join(", ")}
-                </div>
-                <div style={{ fontSize: 14, marginTop: 4 }}>
-                  ₹{Number(item.price).toFixed(2)}
-                </div>
-              </>
-            )}
+          <div key={i} style={{ marginBottom: 6 }}>
+            {it.name} ₹{itemPrice.toFixed(2)}
+            <button onClick={() => removeLine(i)}>✕</button>
           </div>
         );
       })}
 
       <hr />
 
-      <h4>Total: ₹{total.toFixed(2)}</h4>
+      {finalTotal !== null && (
+        <h3>Total ₹{finalTotal.toFixed(2)}</h3>
+      )}
 
-      <button
-        disabled={cart.length === 0}
-        onClick={checkout}
-        style={{
-          width: "100%",
-          padding: 10,
-          fontSize: 16,
-          cursor: cart.length === 0 ? "not-allowed" : "pointer"
-        }}
-      >
-        DONE
+      <button onClick={checkout} disabled={!cart.length || loading}>
+        {loading ? "PROCESSING..." : "DONE"}
       </button>
     </div>
   );

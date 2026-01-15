@@ -6,8 +6,8 @@ const menu = [
   { path: "/admin/stalls", label: "Stalls" },
   { path: "/admin/candies", label: "Candies" },
   { path: "/admin/events", label: "Events" },
-  // { path: "/admin/assign-events", label: "Assign Events" },
-  // { path: "/admin/event-candies", label: "Event Candies" },
+  { path: "/admin/assign-events", label: "Assign Events" },
+  { path: "/admin/event-candies", label: "Event Candies" },
   { path: "/admin/offers", label: "Offers / Combos" },
   { path: "/admin/inventory", label: "Inventory" },
   { path: "/admin/reports", label: "Reports" }
@@ -23,7 +23,7 @@ export default function Sidebar() {
         padding: 16
       }}
     >
-      <h2 style={{ marginBottom: 20 }}>Vendi Admin</h2>
+      <h2 style={{ marginBottom: 20 }}>Wenddy Admin</h2>
 
       {menu.map(item => (
         <NavLink

@@ -1,40 +1,27 @@
+// src/components/SingleGrid.jsx
 import React from "react";
 
 export default function SingleGrid({ candies = [], onAdd }) {
-  if (!candies.length) {
+  if (!candies || candies.length === 0) {
     return <p>No candies available</p>;
   }
 
+  const sorted = [...candies].sort((a, b) => Number(a.price) - Number(b.price));
+
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-      {candies.map(c => (
-        <div
-          key={c.id}
-          style={{
-            border: "1px solid #ccc",
-            padding: 12,
-            borderRadius: 6,
-            width: 180
-          }}
-        >
+      {sorted.map(c => (
+        <div key={c.id} style={{
+          border: "1px solid #ccc", padding: 12, borderRadius: 6, width: 180, background: "#fff"
+        }}>
           <strong>{c.name}</strong>
-          <div>₹{c.price}</div>
-          <div>Stock: {c.stock}</div>
+          <div>₹{Number(c.price).toFixed(2)}</div>
+          <div>Stock: {c.stock ?? 0}</div>
 
           <button
-            disabled={c.stock <= 0}
+            disabled={(c.stock ?? 0) <= 0}
             style={{ marginTop: 8 }}
-            onClick={() => {
-              console.log("ADDING SINGLE:", c); // 🔍 DEBUG (optional)
-
-              onAdd({
-                type: "SINGLE",     // 🔥 REQUIRED
-                candy_id: c.id,     // 🔥 REQUIRED (NOT c.candy_id)
-                name: c.name,
-                price: c.price,
-                stock: c.stock
-              });
-            }}
+            onClick={() => onAdd({ ...c })}
           >
             Add
           </button>
