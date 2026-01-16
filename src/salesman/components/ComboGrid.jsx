@@ -20,11 +20,11 @@ export default function ComboGrid({
           {/* ===== OFFER HEADER ===== */}
           <div style={{ marginBottom: 10 }}>
             <strong style={{ color: "var(--text-primary)" }}>
-              Pick {offer.unique_count} chocolates @ ₹{offer.price}
+              {/* Pick {offer.unique_count} chocolates @ ₹{offer.price} */}
             </strong>
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            {/* <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
               Offer ₹{offer.offer_price}
-            </div>
+            </div> */}
           </div>
 
           {/* ===== GRID ===== */}
