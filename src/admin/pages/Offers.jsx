@@ -1,30 +1,29 @@
 import { useEffect, useState } from "react";
-import api from "../../api";
+import api from "../../api"; // adjust path if needed
 
 export default function Offers() {
   const [offers, setOffers] = useState([]);
   const [candies, setCandies] = useState([]);
 
-  const [comboSize, setComboSize] = useState(2);
+  const [comboSize, setComboSize] = useState(3);
   const [offerPrice, setOfferPrice] = useState("");
   const [priceOn, setPriceOn] = useState("");
-  const [selectedCandies, setSelectedCandies] = useState([]);
-  const [editing, setEditing] = useState(null);
+  const [comboType, setComboType] = useState("SAME");
+  const [priceRows, setPriceRows] = useState([{ price: "", qty: "" }]);
+
+  const [editingId, setEditingId] = useState(null);
 
   /* ---------------- LOAD DATA ---------------- */
-
   const loadData = async () => {
     try {
-      const [offersRes, candiesRes] = await Promise.all([
-        api.get("/admin/combo-offer-rules"),
-        api.get("/admin/candies"),
-      ]);
+      const offersRes = await api.get("/admin/combo-offer-rules");
+      const candiesRes = await api.get("/admin/candies");
 
-      setOffers(offersRes.data.rules || []);
-      setCandies(candiesRes.data || []);
+      setOffers(offersRes.data?.rules || []);
+      setCandies(Array.isArray(candiesRes.data) ? candiesRes.data : []);
     } catch (err) {
-      console.error("LOAD OFFERS ERROR:", err);
-      alert("Failed to load offers");
+      console.error("LOAD COMBO RULES ERROR:", err);
+      alert("Failed to load data");
     }
   };
 
@@ -32,79 +31,18 @@ export default function Offers() {
     loadData();
   }, []);
 
-  /* ---------------- HELPERS ---------------- */
-
-  const toggleCandy = (id) => {
-    setSelectedCandies((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id]
-    );
-  };
-
+  /* ---------------- RESET ---------------- */
   const resetForm = () => {
-    setEditing(null);
-    setComboSize(2);
+    setComboSize(3);
     setOfferPrice("");
     setPriceOn("");
-    setSelectedCandies([]);
+    setComboType("SAME");
+    setPriceRows([{ price: "", qty: "" }]);
+    setEditingId(null);
   };
 
-  /* ---------------- SAVE ---------------- */
-
-  const saveOffer = async () => {
-    if (!offerPrice || !priceOn || selectedCandies.length < comboSize) {
-      alert("Fill all fields correctly");
-      return;
-    }
-
-    const payload = {
-      unique_count: comboSize,
-      offer_price: Number(offerPrice),
-      price: Number(priceOn),
-      candy_ids: selectedCandies,
-      valid_from: null,
-      valid_to: null,
-    };
-
-    try {
-      if (editing) {
-        await api.put(`/admin/combo-offer-rules/${editing.id}`, {
-          offer_price: payload.offer_price,
-          valid_from: null,
-          valid_to: null,
-          candy_ids: selectedCandies,
-        });
-      } else {
-        await api.post("/admin/combo-offer-rules", payload);
-      }
-
-      resetForm();
-      loadData();
-    } catch (err) {
-      console.error("SAVE OFFER ERROR:", err);
-      alert("Failed to save offer");
-    }
-  };
-
-  /* ---------------- TOGGLE ACTIVE ---------------- */
-
-  const toggleStatus = async (offer) => {
-    try {
-      await api.patch(
-        `/admin/combo-offer-rules/${offer.id}/status`,
-        { is_active: !offer.is_active }
-      );
-      loadData();
-    } catch (err) {
-      console.error("STATUS UPDATE ERROR:", err);
-      alert("Failed to update status");
-    }
-  };
-
-  /* ---------------- DELETE RULE ---------------- */
-
-  const deleteRule = async (id) => {
+  /* ---------------- DELETE ---------------- */
+  const deleteOffer = async (id) => {
     const ok = window.confirm("Delete this combo rule?");
     if (!ok) return;
 
@@ -112,124 +50,233 @@ export default function Offers() {
       await api.delete(`/admin/combo-offer-rules/${id}`);
       loadData();
     } catch (err) {
-      console.error("DELETE ERROR:", err);
-      alert("Failed to delete rule");
+      console.error("DELETE RULE ERROR:", err);
+      alert("Failed to delete");
+    }
+  };
+
+  /* ---------------- EDIT ---------------- */
+  const editOffer = (o) => {
+    setEditingId(o.id);
+    setComboSize(o.unique_count);
+    setOfferPrice(o.offer_price);
+
+    if (o.price !== null) {
+      setComboType("SAME");
+      setPriceOn(o.price);
+      setPriceRows([{ price: "", qty: "" }]);
+    } else {
+      setComboType("MIXED");
+      setPriceRows(
+        o.price_pattern && o.price_pattern.length
+          ? o.price_pattern.map(p => ({
+              price: p.price,
+              qty: p.qty
+            }))
+          : [{ price: "", qty: "" }]
+      );
+    }
+  };
+
+  /* ---------------- SAVE / UPDATE ---------------- */
+  const saveOffer = async () => {
+    if (!offerPrice) {
+      alert("Offer price required");
+      return;
+    }
+
+    if (!comboSize || Number(comboSize) <= 0) {
+      alert("Combo size must be > 0");
+      return;
+    }
+
+    let payload = {
+      unique_count: Number(comboSize),
+      offer_price: Number(offerPrice),
+      price: null,
+      price_pattern: null
+    };
+
+    if (comboType === "SAME") {
+      if (!priceOn) {
+        alert("Candy price required");
+        return;
+      }
+      payload.price = Number(priceOn);
+    } else {
+      const cleaned = priceRows
+        .map(r => ({
+          price: r.price === "" ? "" : Number(r.price),
+          qty: r.qty === "" ? "" : Number(r.qty)
+        }))
+        .filter(r => r.price !== "" && r.qty !== "");
+
+      if (!cleaned.length) {
+        alert("At least one price row required for mixed type");
+        return;
+      }
+
+      const totalQty = cleaned.reduce((s, r) => s + Number(r.qty || 0), 0);
+      if (totalQty !== Number(comboSize)) {
+        alert("Total qty in price pattern must equal combo size");
+        return;
+      }
+
+      payload.price_pattern = cleaned;
+    }
+
+    try {
+      if (editingId) {
+        await api.put(`/admin/combo-offer-rules/${editingId}`, payload);
+      } else {
+        await api.post("/admin/combo-offer-rules", payload);
+      }
+
+      resetForm();
+      loadData();
+    } catch (err) {
+      console.error("SAVE COMBO RULE ERROR:", err);
+      alert("Failed to save rule");
     }
   };
 
   /* ---------------- UI ---------------- */
-
   return (
-    <div style={{ padding: 20 }}>
+    <div style={styles.page}>
       <h2>Combo Offer Rules</h2>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={styles.grid}>
         {/* LEFT */}
-        <div style={card}>
-          <h3>{editing ? "Edit Combo Rule" : "Create Combo Rule"}</h3>
+        <div style={styles.card}>
+          <h3>{editingId ? "Edit Combo Rule" : "Create Combo Rule"}</h3>
+
+          <div style={styles.radioRow}>
+            <label>
+              <input
+                type="radio"
+                checked={comboType === "SAME"}
+                onChange={() => setComboType("SAME")}
+              />{" "}
+              Same Price
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                checked={comboType === "MIXED"}
+                onChange={() => setComboType("MIXED")}
+              />{" "}
+              Mixed Price
+            </label>
+          </div>
 
           <input
-            style={input}
+            style={styles.input}
             type="number"
-            min="1"
             value={comboSize}
-            onChange={(e) => setComboSize(Number(e.target.value))}
+            onChange={e => setComboSize(Number(e.target.value))}
             placeholder="Combo Size"
+            min={1}
           />
 
-          <input
-            style={input}
-            type="number"
-            placeholder="Candy Price (e.g. 65)"
-            value={priceOn}
-            onChange={(e) => setPriceOn(e.target.value)}
-          />
+          {comboType === "SAME" && (
+            <input
+              style={styles.input}
+              type="number"
+              placeholder="Candy Price"
+              value={priceOn}
+              onChange={e => setPriceOn(e.target.value)}
+            />
+          )}
+
+          {comboType === "MIXED" &&
+            priceRows.map((row, i) => (
+              <div key={i} style={styles.patternRow}>
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={row.price}
+                  onChange={e => {
+                    const next = [...priceRows];
+                    next[i].price = e.target.value;
+                    setPriceRows(next);
+                  }}
+                />
+                <input
+                  type="number"
+                  placeholder="Qty"
+                  value={row.qty}
+                  onChange={e => {
+                    const next = [...priceRows];
+                    next[i].qty = e.target.value;
+                    setPriceRows(next);
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const next = priceRows.filter((_, idx) => idx !== i);
+                    setPriceRows(next.length ? next : [{ price: "", qty: "" }]);
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+
+          {comboType === "MIXED" && (
+            <button
+              onClick={() =>
+                setPriceRows([...priceRows, { price: "", qty: "" }])
+              }
+              style={{ marginBottom: 10 }}
+            >
+              Add Row
+            </button>
+          )}
 
           <input
-            style={input}
+            style={styles.input}
             type="number"
             placeholder="Offer Price"
             value={offerPrice}
-            onChange={(e) => setOfferPrice(e.target.value)}
+            onChange={e => setOfferPrice(e.target.value)}
           />
 
-          <h4>Select Allowed Candies</h4>
+          <button style={styles.primaryBtn} onClick={saveOffer}>
+            {editingId ? "Update Rule" : "Save Rule"}
+          </button>
 
-          <div style={candyGrid}>
-            {candies.map((c) => {
-              const selected = selectedCandies.includes(c.id);
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => toggleCandy(c.id)}
-                  style={{
-                    ...candyCard,
-                    background: selected ? "#000" : "#fff",
-                    color: selected ? "#fff" : "#000",
-                  }}
-                >
-                  <strong>{c.name}</strong>
-                  <div style={{ fontSize: 12 }}>₹{c.price}</div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <button onClick={saveOffer}>
-              {editing ? "Update Rule" : "Save Rule"}
+          {editingId && (
+            <button style={styles.secondaryBtn} onClick={resetForm}>
+              Cancel Edit
             </button>
-
-            {editing && (
-              <button style={{ marginLeft: 10 }} onClick={resetForm}>
-                Cancel
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {/* RIGHT */}
         <div>
           <h3>Existing Combo Rules</h3>
 
-          {offers.length === 0 && <p>No rules created yet</p>}
-
-          {offers.map((o) => (
-            <div key={o.id} style={offerCard}>
-              <strong>
-                Pick {o.unique_count} chocolates @ ₹{o.price}
-              </strong>
-
-              <div>Offer Price: ₹{o.offer_price}</div>
-
-              <div style={{ fontSize: 13, marginTop: 6 }}>
-                Candies: {o.candies?.map((c) => c.name).join(", ")}
+          {offers.map(o => (
+            <div key={o.id} style={styles.offerCard}>
+              <div>
+                <strong>
+                  Pick {o.unique_count} chocolates{" "}
+                  {o.price ? `@ ₹${o.price}` : "(Mixed)"}
+                </strong>
+                <div>Offer ₹{o.offer_price}</div>
               </div>
 
-              <div style={{ marginTop: 8 }}>
-                Status: <b>{o.is_active ? "ACTIVE" : "INACTIVE"}</b>
-              </div>
-
-              <div style={{ marginTop: 10 }}>
+              <div style={styles.actions}>
                 <button
-                  onClick={() => {
-                    setEditing(o);
-                    setComboSize(o.unique_count);
-                    setOfferPrice(o.offer_price);
-                    setPriceOn(o.price);
-                    setSelectedCandies(o.candies.map((c) => c.id));
-                  }}
+                  style={styles.editBtn}
+                  onClick={() => editOffer(o)}
                 >
                   Edit
                 </button>
-
-                <button style={{ marginLeft: 8 }} onClick={() => toggleStatus(o)}>
-                  {o.is_active ? "Disable" : "Enable"}
-                </button>
-
                 <button
-                  style={{ marginLeft: 8, color: "white", background: "red" }}
-                  onClick={() => deleteRule(o.id)}
+                  style={styles.deleteBtn}
+                  onClick={() => deleteOffer(o.id)}
                 >
                   Delete
                 </button>
@@ -244,35 +291,34 @@ export default function Offers() {
 
 /* ================= STYLES ================= */
 
-const card = {
-  border: "1px solid #ddd",
-  borderRadius: 6,
-  padding: 16,
-};
-
-const input = {
-  width: "100%",
-  padding: 8,
-  marginBottom: 10,
-};
-
-const candyGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
-  gap: 10,
-};
-
-const candyCard = {
-  border: "1px solid #ccc",
-  borderRadius: 6,
-  padding: 10,
-  cursor: "pointer",
-  textAlign: "center",
-};
-
-const offerCard = {
-  border: "1px solid #ddd",
-  borderRadius: 6,
-  padding: 14,
-  marginBottom: 12,
+const styles = {
+  page: { padding: 20 },
+  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 },
+  card: { border: "1px solid #ddd", borderRadius: 8, padding: 16 },
+  input: { width: "100%", padding: 10, marginBottom: 10 },
+  radioRow: { display: "flex", gap: 20, marginBottom: 12 },
+  patternRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr auto",
+    gap: 10,
+    alignItems: "center"
+  },
+  primaryBtn: { padding: 10, background: "#000", color: "#fff" },
+  secondaryBtn: { marginTop: 8 },
+  offerCard: {
+    border: "1px solid #ddd",
+    padding: 14,
+    marginBottom: 10,
+    display: "flex",
+    justifyContent: "space-between"
+  },
+  actions: { display: "flex", flexDirection: "column", gap: 6 },
+  editBtn: { cursor: "pointer" },
+  deleteBtn: {
+    background: "red",
+    color: "#fff",
+    border: "none",
+    cursor: "pointer",
+    padding: 6
+  }
 };

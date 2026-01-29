@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../../../api";
+import api from "../../../api"; // adjust path if needed
 
 export default function StallOffers({ stallId }) {
   const [offers, setOffers] = useState([]);
@@ -9,29 +9,36 @@ export default function StallOffers({ stallId }) {
   useEffect(() => {
     if (!stallId) return;
 
-    const loadData = async () => {
-      try {
-        // 1️⃣ Load all offers
-        const offersRes = await api.get("/admin/offers");
-        setOffers(offersRes.data || []);
-
-        // 2️⃣ Load assigned offers for this stall
-        const assignedRes = await api.get(`/admin/stall-offers/${stallId}`);
-        setSelected((assignedRes.data || []).map(o => o.offer_id));
-      } catch (err) {
-        console.error("LOAD OFFERS ERROR:", err);
+    // 1️⃣ Load all offers
+    api
+      .get("/admin/offers")
+      .then(res => {
+        setOffers(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(err => {
+        console.error("OFFERS LOAD ERROR:", err);
         alert("Failed to load offers");
-      }
-    };
+      });
 
-    loadData();
+    // 2️⃣ Load already assigned offers for this stall
+    api
+      .get(`/admin/stall-offers/${stallId}`)
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        // data = [{ offer_id: 1 }, ...]
+        setSelected(data.map(o => o.offer_id));
+      })
+      .catch(err => {
+        console.error("STALL OFFERS LOAD ERROR:", err);
+        alert("Failed to load stall offers");
+      });
   }, [stallId]);
 
   /* ---------------- TOGGLE ---------------- */
   const toggle = (id) => {
-    setSelected((prev) =>
+    setSelected(prev =>
       prev.includes(id)
-        ? prev.filter((x) => x !== id)
+        ? prev.filter(x => x !== id)
         : [...prev, id]
     );
   };
@@ -45,13 +52,13 @@ export default function StallOffers({ stallId }) {
 
     try {
       await api.post(`/admin/stall-offers/${stallId}`, {
-        offerIds: selected,
+        offerIds: selected
       });
 
       alert("Offers assigned to stall");
     } catch (err) {
-      console.error("SAVE OFFERS ERROR:", err);
-      alert("Failed to save offers");
+      console.error("STALL OFFERS SAVE ERROR:", err);
+      alert("Failed to save stall offers");
     }
   };
 
@@ -62,13 +69,14 @@ export default function StallOffers({ stallId }) {
 
       {offers.length === 0 && <p>No offers created yet</p>}
 
-      {offers.map((o) => (
+      {offers.map(o => (
         <label key={o.id} style={{ display: "block" }}>
           <input
             type="checkbox"
             checked={selected.includes(o.id)}
             onChange={() => toggle(o.id)}
           />
+          {" "}
           {o.title}
         </label>
       ))}

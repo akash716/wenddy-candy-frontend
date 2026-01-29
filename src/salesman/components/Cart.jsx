@@ -1,20 +1,10 @@
 import React, { useEffect, useState } from "react";
-import api from "../../api";
+import api from "../../api"; // adjust path if needed
 
 export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
   const [finalTotal, setFinalTotal] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  /* =========================
-     🔥 FIND COMBO PRICES
-  ========================= */
-  const comboPrices = cart
-    .filter((l) => l.type === "COMBO")
-    .map((l) => Number(l.price));
-
-  /* =========================
-     🔥 PREVIEW (BACKEND TRUTH)
-  ========================= */
   useEffect(() => {
     const preview = async () => {
       if (!cart.length) {
@@ -24,12 +14,12 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
 
       try {
         const res = await api.post("/salesman/preview", {
-          lines: cart,
+          lines: cart
         });
 
-        setFinalTotal(Number(res.data.total));
-      } catch (err) {
-        console.error("PREVIEW ERROR:", err);
+        setFinalTotal(Number(res.data?.total || 0));
+      } catch (e) {
+        console.error("Preview error:", e);
         setFinalTotal(null);
       }
     };
@@ -37,84 +27,123 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
     preview();
   }, [cart]);
 
-  const removeLine = (i) =>
-    setCart(cart.filter((_, idx) => idx !== i));
+  const removeLine = (index) => {
+    setCart(prev => prev.filter((_, i) => i !== index));
+  };
 
-  /* =========================
-     🔥 CHECKOUT
-  ========================= */
   const checkout = async () => {
     if (!stallId) {
-      alert("Stall not selected");
+      alert("Invalid stall");
       return;
     }
 
     try {
       setLoading(true);
 
-      const res = await api.post(
-        `/salesman/${stallId}/sell`,
-        { lines: cart }
-      );
+      await api.post(`/salesman/${stallId}/sell`, {
+        lines: cart
+      });
 
-      alert(`✅ Sale completed\nBill: ₹${res.data.total}`);
+      if (finalTotal === null || isNaN(finalTotal)) {
+        throw new Error("Invalid bill amount");
+      }
+
+      alert(`✅ Sale completed\nBill: ₹${finalTotal.toFixed(2)}`);
 
       setCart([]);
       onSaleComplete?.();
-    } catch (err) {
-      console.error("CHECKOUT ERROR:", err);
-      alert(
-        err.response?.data?.error ||
-          "Failed to complete sale"
-      );
+    } catch (e) {
+      alert(e.message || "Checkout failed");
     } finally {
       setLoading(false);
     }
   };
 
-  /* =========================
-     🔥 RENDER (UI ONLY)
-  ========================= */
   return (
     <div
       style={{
         padding: 16,
-        borderRadius: 12,
-        border: "1px solid var(--border-color)",
+        borderRadius: 10,
         background: "var(--panel-bg)",
-        width: 300
+        color: "var(--text-primary)",
+        border: "1px solid var(--border-color)"
       }}
     >
-      <h3 style={{ marginBottom: 10 }}>🛒 Cart</h3>
+      <h3 style={{ marginTop: 0 }}>🛒 Cart</h3>
 
-      {/* ✅ OFFER APPLIED (UI ONLY) */}
-      {cart.some((l) => l.type === "COMBO") && (
-        <div
-          style={{
-            fontSize: 12,
-            padding: "4px 8px",
-            borderRadius: 6,
-            background: "var(--offer-bg)",
-            color: "var(--offer-text)",
-            marginBottom: 12,
-            display: "inline-block"
-          }}
-        >
-          🎉 Offer Applied
-        </div>
-      )}
+      {cart.map((l, i) => {
+        /* ================= COMBO ================= */
+        if (l.type === "COMBO") {
+          const label =
+            l.source === "BIG_COMBO" && l.items?.[0]?.name
+              ? l.items[0].name
+              : "Combo Applied";
 
-      {cart.map((line, i) => {
-        /* ---------- COMBO ---------- */
-        if (line.type === "COMBO") {
           return (
-            <div key={i} style={rowStyle}>
-              <strong>
-                Combo Offer ₹{Number(line.price).toFixed(2)}
-              </strong>
+            <div
+              key={`combo-${i}`}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 8,
+                fontWeight: 600,
+                color: "var(--offer-text)",
+                background: "var(--offer-bg)",
+                padding: "6px 8px",
+                borderRadius: 6
+              }}
+            >
+              <span>🎉 {label}</span>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <span>₹{Number(l.price).toFixed(2)}</span>
+                <button
+                  onClick={() => removeLine(i)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    color: "var(--danger)"
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        /* ================= ITEM ================= */
+        if (l.type === "ITEM" && Array.isArray(l.items)) {
+          const it = l.items[0];
+          if (!it) return null;
+
+          return (
+            <div
+              key={`item-${i}`}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 6,
+                color: "var(--text-primary)"
+              }}
+            >
+              <span>
+                {it.name} ₹{Number(it.price).toFixed(2)}
+              </span>
+
               <button
                 onClick={() => removeLine(i)}
-                style={removeBtnStyle}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  color: "var(--danger)"
+                }}
               >
                 ✕
               </button>
@@ -122,45 +151,15 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
           );
         }
 
-        /* ---------- ITEM ---------- */
-        const it = line.items[0];
-        const itemPrice = Number(it.price);
-
-        // 🔥 hide ONLY if same-price combo exists
-        if (comboPrices.includes(itemPrice)) {
-          return null;
-        }
-
-        return (
-          <div key={i} style={rowStyle}>
-            <span>
-              {it.name} ₹{itemPrice.toFixed(2)}
-            </span>
-            <button
-              onClick={() => removeLine(i)}
-              style={removeBtnStyle}
-            >
-              ✕
-            </button>
-          </div>
-        );
+        return null;
       })}
 
-      <hr style={{ margin: "12px 0", borderColor: "var(--border-color)" }} />
+      <hr style={{ borderColor: "var(--border-color)" }} />
 
-      {/* ✅ TOTAL (UNCHANGED LOGIC, BETTER UI) */}
       {finalTotal !== null && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontWeight: 700,
-            marginBottom: 12
-          }}
-        >
-          <span>Total</span>
-          <span>₹{finalTotal.toFixed(2)}</span>
-        </div>
+        <h3 style={{ marginBottom: 12 }}>
+          Total ₹{finalTotal.toFixed(2)}
+        </h3>
       )}
 
       <button
@@ -168,9 +167,13 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
         disabled={!cart.length || loading}
         style={{
           width: "100%",
-          padding: 12,
-          borderRadius: 10,
-          fontWeight: 600
+          padding: 10,
+          borderRadius: 6,
+          border: "none",
+          background: "var(--btn-primary)",
+          color: "#fff",
+          cursor: loading ? "not-allowed" : "pointer",
+          opacity: loading ? 0.6 : 1
         }}
       >
         {loading ? "PROCESSING..." : "DONE"}
@@ -178,26 +181,3 @@ export default function Cart({ cart, setCart, stallId, onSaleComplete }) {
     </div>
   );
 }
-
-/* =========================
-   🎨 UI-ONLY STYLES
-========================= */
-const rowStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: 10
-};
-
-const removeBtnStyle = {
-  width: 28,
-  height: 28,
-  borderRadius: "50%",
-  border: "1px solid var(--border-color)",
-  background: "transparent",
-  color: "var(--danger)",
-  fontSize: 16,
-  lineHeight: "26px",
-  cursor: "pointer",
-  flexShrink: 0
-};

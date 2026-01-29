@@ -1,100 +1,164 @@
 import React, { useEffect, useState } from "react";
-import api from "../../../api";
+import api from "../../../api"; // adjust path if needed
 
 export default function StallInventory({ stallId }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  /* ================= LOAD INVENTORY ================= */
   useEffect(() => {
     if (!stallId) return;
 
-    const loadInventory = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get(`/admin/inventory/${stallId}`);
-        setItems(res.data || []);
-      } catch (err) {
+    setLoading(true);
+
+    api
+      .get(`/admin/inventory/${stallId}`)
+      .then(res => {
+        setItems(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(err => {
         console.error("INVENTORY LOAD ERROR:", err);
         alert("Failed to load inventory");
-      } finally {
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    };
-
-    loadInventory();
+      });
   }, [stallId]);
 
-  /* ================= HANDLE CHANGE ================= */
   const handleChange = (candyId, value) => {
-    setItems((prev) =>
-      prev.map((i) =>
+    setItems(prev =>
+      prev.map(i =>
         i.candy_id === candyId
-          ? { ...i, stock: value }
+          ? { ...i, stock: Number(value) }
           : i
       )
     );
   };
 
-  /* ================= SAVE STOCK ================= */
-  const saveStock = async (candyId, stock) => {
+  /* ===============================
+     SAVE ALL STOCKS
+  =============================== */
+  const saveAll = async () => {
     try {
-      await api.post(`/admin/inventory/${stallId}`, {
-        candyId,
-        stock: Number(stock),
-      });
+      setSaving(true);
 
-      alert("Stock updated");
-    } catch (err) {
-      console.error("STOCK UPDATE ERROR:", err);
-      alert("Failed to update stock");
+      await api.post(
+        `/admin/inventory/${stallId}/bulk`,
+        {
+          items: items.map(i => ({
+            candyId: i.candy_id,
+            stock: Number(i.stock)
+          }))
+        }
+      );
+
+      alert("Inventory updated successfully");
+    } catch (e) {
+      console.error("INVENTORY SAVE ERROR:", e);
+      alert("Failed to save inventory");
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (loading) return <p>Loading inventory...</p>;
+  if (loading) {
+    return <p style={{ color: "var(--text-muted)" }}>Loading inventory…</p>;
+  }
 
   return (
-    <div>
-      <h3>Stall Inventory</h3>
+    <div
+      style={{
+        background: "var(--panel-bg)",
+        padding: 16,
+        borderRadius: 12,
+        border: "1px solid var(--border-color)"
+      }}
+    >
+      <h3 style={{ marginTop: 0, marginBottom: 16 }}>
+        Stall Inventory
+      </h3>
 
-      <table border="1" cellPadding="8">
-        <thead>
-          <tr>
-            <th>Candy</th>
-            <th>Price</th>
-            <th>Stock</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+      {/* GRID */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+          gap: 14
+        }}
+      >
+        {items.map(i => (
+          <div
+            key={i.candy_id}
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid var(--border-color)",
+              background: "var(--card-bg)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8
+            }}
+          >
+            {/* NAME */}
+            <div
+              style={{
+                fontWeight: 600,
+                color: "var(--text-primary)"
+              }}
+            >
+              {i.name}
+            </div>
 
-        <tbody>
-          {items.map((i) => (
-            <tr key={i.candy_id}>
-              <td>{i.name}</td>
-              <td>₹{i.price}</td>
-              <td>
-                <input
-                  type="number"
-                  min="0"
-                  value={i.stock}
-                  onChange={(e) =>
-                    handleChange(i.candy_id, e.target.value)
-                  }
-                />
-              </td>
-              <td>
-                <button
-                  onClick={() =>
-                    saveStock(i.candy_id, i.stock)
-                  }
-                >
-                  Save
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            {/* PRICE */}
+            <div
+              style={{
+                fontSize: 14,
+                color: "var(--text-muted)"
+              }}
+            >
+              ₹{Number(i.price).toFixed(0)}
+            </div>
+
+            {/* STOCK INPUT */}
+            <input
+              type="number"
+              min="0"
+              value={i.stock}
+              onChange={e =>
+                handleChange(i.candy_id, e.target.value)
+              }
+              style={{
+                marginTop: 6,
+                padding: "6px 8px",
+                borderRadius: 6,
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-main)",
+                color: "var(--text-primary)"
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* SAVE ALL */}
+      <button
+        onClick={saveAll}
+        disabled={saving}
+        style={{
+          marginTop: 18,
+          width: "100%",
+          padding: 12,
+          borderRadius: 10,
+          border: "none",
+          background: "var(--btn-primary)",
+          color: "#fff",
+          fontWeight: 600,
+          cursor: saving ? "not-allowed" : "pointer",
+          opacity: saving ? 0.7 : 1
+        }}
+      >
+        {saving ? "Saving…" : "Save All Changes"}
+      </button>
     </div>
   );
 }

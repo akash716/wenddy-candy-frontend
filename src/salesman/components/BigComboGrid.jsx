@@ -4,28 +4,13 @@ import api from "../../api"; // adjust path if needed
 // derive base url safely from axios instance
 const BASE_URL = api.defaults.baseURL.replace("/api", "");
 
-export default function ComboGrid({
-  offers = [],
+export default function BigComboGrid({
   candies = [],
   selectedIds = [],
   onSelect
 }) {
-  if (!offers.length) {
-    return (
-      <p style={{ color: "var(--text-muted)" }}>
-        No combo offers available
-      </p>
-    );
-  }
-
-  /* ===============================
-     ELIGIBLE COMBO CANDIES
-     ✔ 65 first
-     ✔ then 80
-     ✔ name asc
-  =============================== */
-  const comboCandies = candies
-    .filter(c => Number(c.price) === 65 || Number(c.price) === 80)
+  const bigCombos = candies
+    .filter(c => Number(c.price) === 180 || Number(c.price) === 230)
     .sort((a, b) => {
       if (Number(a.price) !== Number(b.price)) {
         return Number(a.price) - Number(b.price);
@@ -42,7 +27,7 @@ export default function ComboGrid({
           color: "var(--text-muted)"
         }}
       >
-        Tap chocolates to build combo (tap again to remove)
+        Tap chocolates to build big combo (tap again to remove)
       </div>
 
       {/* GRID */}
@@ -53,7 +38,7 @@ export default function ComboGrid({
           gap: 16
         }}
       >
-        {comboCandies.map(c => {
+        {bigCombos.map(c => {
           const selected = selectedIds.includes(c.id);
           const outOfStock = (c.stock ?? 0) <= 0;
 
@@ -102,8 +87,7 @@ export default function ComboGrid({
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "var(--text-muted)",
-                      fontSize: 12
+                      color: "var(--text-muted)"
                     }}
                   >
                     No Image
@@ -126,43 +110,6 @@ export default function ComboGrid({
                 >
                   ₹{Number(c.price).toFixed(0)}
                 </div>
-
-                {/* STOCK */}
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    background: outOfStock
-                      ? "var(--danger)"
-                      : "#1faa59",
-                    color: "#fff",
-                    padding: "4px 8px",
-                    borderRadius: 6,
-                    fontSize: 11
-                  }}
-                >
-                  {outOfStock ? "OUT" : `Stock ${c.stock}`}
-                </div>
-
-                {/* SELECTED OVERLAY */}
-                {selected && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: "rgba(0,0,0,0.25)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 22,
-                      color: "#fff",
-                      fontWeight: "bold"
-                    }}
-                  >
-                    ✓
-                  </div>
-                )}
               </div>
 
               {/* NAME */}
@@ -170,7 +117,7 @@ export default function ComboGrid({
                 style={{
                   padding: 10,
                   textAlign: "center",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   color: "var(--text-primary)"
                 }}
               >

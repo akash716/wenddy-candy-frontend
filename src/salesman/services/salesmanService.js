@@ -1,21 +1,25 @@
-import api from "../../api";
+import api from "../../api"; // adjust path if needed
 
-/* =========================
-   GET AVAILABLE CANDIES
-========================= */
 export const getAvailableCandies = async (stallId) => {
-  const res = await api.get(`/salesman/${stallId}/candies`);
-  return res.data;
+  try {
+    const res = await api.get(`/salesman/${stallId}/candies`);
+    return res.data;
+  } catch (err) {
+    console.error("GET AVAILABLE CANDIES ERROR:", err);
+    throw err;
+  }
 };
 
-/* =========================
-   SELL CANDY
-========================= */
 export const sellCandy = async (stallId, candyId, qty) => {
-  const res = await api.post(`/salesman/${stallId}/sell`, {
-    candyId,
-    qty,
-  });
+  try {
+    const res = await api.post(`/salesman/${stallId}/sell`, {
+      candyId,
+      qty
+    });
 
-  return res.data;
+    return res.data;
+  } catch (err) {
+    console.error("SELL CANDY ERROR:", err);
+    throw err;
+  }
 };

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import api from "../../../api"; // 👈 path adjust if needed
+import api from "../../../api"; // adjust path if needed
 
 export default function Bills() {
   const [startDate, setStartDate] = useState("2026-01-01");
@@ -13,15 +13,15 @@ export default function Bills() {
   /* ================= LOAD BILLS ================= */
   const loadBills = async () => {
     setLoading(true);
-    try {
-      const res = await api.get("/admin/reports/bills", {
-        params: {
-          start_date: startDate,
-          end_date: endDate
-        }
-      });
+    setSelectedBill(null);
+    setBillItems([]);
 
-      setBills(res.data || []);
+    try {
+      const res = await api.get(
+        `/admin/reports/bills?start_date=${startDate}&end_date=${endDate}`
+      );
+
+      setBills(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("BILLS LOAD ERROR:", err);
       alert("Failed to load bills");
@@ -39,7 +39,8 @@ export default function Bills() {
       const res = await api.get(
         `/admin/reports/bills/${bill.id}`
       );
-      setBillItems(res.data || []);
+
+      setBillItems(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("BILL DETAIL ERROR:", err);
       alert("Failed to load bill details");
@@ -68,7 +69,7 @@ export default function Bills() {
       {loading && <p>Loading bills...</p>}
 
       {/* ================= BILLS LIST ================= */}
-      {bills.length > 0 && (
+      {!loading && bills.length > 0 && (
         <table border="1" cellPadding="8" width="600">
           <thead>
             <tr>
@@ -79,9 +80,9 @@ export default function Bills() {
             </tr>
           </thead>
           <tbody>
-            {bills.map((b, i) => (
+            {bills.map((b) => (
               <tr
-                key={i}
+                key={b.id}
                 style={{ cursor: "pointer" }}
                 onClick={() => openBill(b)}
               >

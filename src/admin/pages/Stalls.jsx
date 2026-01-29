@@ -1,25 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../api";
+import api from "../../api"; // adjust path if needed
 
 export default function Stalls() {
   const [stalls, setStalls] = useState([]);
   const [form, setForm] = useState({
     name: "",
     company: "",
-    location: "",
+    location: ""
   });
 
   const navigate = useNavigate();
 
   /* ---------------- LOAD STALLS ---------------- */
-
   const loadStalls = async () => {
     try {
       const res = await api.get("/admin/stalls");
-      setStalls(res.data || []);
+      setStalls(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error("LOAD STALLS ERROR:", err);
+      console.error("STALL LOAD ERROR:", err);
       alert("Failed to load stalls");
     }
   };
@@ -29,7 +28,6 @@ export default function Stalls() {
   }, []);
 
   /* ---------------- CREATE STALL ---------------- */
-
   const createStall = async () => {
     if (!form.name || !form.company) {
       alert("Stall name and company are required");
@@ -41,27 +39,25 @@ export default function Stalls() {
       setForm({ name: "", company: "", location: "" });
       loadStalls();
     } catch (err) {
-      console.error("CREATE STALL ERROR:", err);
+      console.error("STALL CREATE ERROR:", err);
       alert("Failed to create stall");
     }
   };
 
   /* ---------------- ACTIVATE / DEACTIVATE ---------------- */
-
   const toggleStatus = async (stall) => {
     try {
       await api.put(`/admin/stalls/${stall.id}`, {
-        is_active: stall.is_active ? 0 : 1,
+        is_active: stall.is_active ? 0 : 1
       });
       loadStalls();
     } catch (err) {
-      console.error("STATUS UPDATE ERROR:", err);
-      alert("Failed to update status");
+      console.error("STALL STATUS ERROR:", err);
+      alert("Failed to update stall status");
     }
   };
 
-  /* ---------------- REMOVE (ARCHIVE) STALL ---------------- */
-
+  /* ---------------- REMOVE STALL ---------------- */
   const removeStall = async (stall) => {
     const ok = window.confirm(
       `Remove "${stall.name}" from UI?\n\nSales & history will be preserved.`
@@ -72,25 +68,35 @@ export default function Stalls() {
       await api.put(`/admin/stalls/${stall.id}/archive`);
       loadStalls();
     } catch (err) {
-      console.error("ARCHIVE ERROR:", err);
+      console.error("STALL REMOVE ERROR:", err);
       alert("Failed to remove stall");
     }
   };
 
-  /* ---------------- UI ---------------- */
+  /* ---------------- COPY DASHBOARD LINK ---------------- */
+  const copyDashboardLink = async (stallId) => {
+    try {
+      const link = `${window.location.origin}/salesman/${stallId}`;
+      await navigator.clipboard.writeText(link);
+      alert("Dashboard link copied!");
+    } catch (err) {
+      alert("Failed to copy link");
+    }
+  };
 
+  /* ---------------- UI ---------------- */
   return (
     <div style={{ padding: 20 }}>
       <h2>Stalls</h2>
 
-      {/* CREATE STALL */}
+      {/* ---------- ADD STALL ---------- */}
       <div
         style={{
           border: "1px solid #ddd",
           padding: 16,
-          borderRadius: 6,
+          borderRadius: 8,
           marginBottom: 24,
-          maxWidth: 600,
+          maxWidth: 650
         }}
       >
         <h3>Add New Stall</h3>
@@ -117,11 +123,13 @@ export default function Stalls() {
               setForm({ ...form, location: e.target.value })
             }
           />
-          <button onClick={createStall}>Add</button>
+          <button className="btn-primary" onClick={createStall}>
+            Add
+          </button>
         </div>
       </div>
 
-      {/* STALL TABLE */}
+      {/* ---------- STALL TABLE ---------- */}
       <table
         width="100%"
         border="1"
@@ -134,7 +142,7 @@ export default function Stalls() {
             <th>Company</th>
             <th>Location</th>
             <th>Status</th>
-            <th width="320">Actions</th>
+            <th width="420">Actions</th>
           </tr>
         </thead>
 
@@ -144,7 +152,6 @@ export default function Stalls() {
               <td>{stall.name}</td>
               <td>{stall.company}</td>
               <td>{stall.location}</td>
-
               <td>
                 {stall.is_active ? (
                   <span style={{ color: "green" }}>Active</span>
@@ -153,38 +160,62 @@ export default function Stalls() {
                 )}
               </td>
 
+              {/* ---------- ACTIONS ---------- */}
               <td>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => toggleStatus(stall)}>
-                    {stall.is_active ? "Deactivate" : "Activate"}
-                  </button>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8
+                  }}
+                >
+                  {/* ROW 1 */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn-primary"
+                      onClick={() => toggleStatus(stall)}
+                    >
+                      {stall.is_active ? "Deactivate" : "Activate"}
+                    </button>
 
-                  <button
-                    onClick={() =>
-                      navigate(`/admin/stalls/${stall.id}`)
-                    }
-                  >
-                    Manage
-                  </button>
+                    <button
+                      className="btn-primary"
+                      onClick={() =>
+                        navigate(`/admin/stalls/${stall.id}`)
+                      }
+                    >
+                      Manage
+                    </button>
 
-                  <a
-                    href={`/salesman/${stall.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <button>Dashboard</button>
-                  </a>
+                    <a
+                      href={`/salesman/${stall.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <button className="btn-primary">
+                        Dashboard
+                      </button>
+                    </a>
+                  </div>
 
-                  <button
-                    onClick={() => removeStall(stall)}
-                    style={{
-                      color: "white",
-                      background: "red",
-                      border: "none",
-                    }}
-                  >
-                    Remove
-                  </button>
+                  {/* ROW 2 */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn-secondary"
+                      onClick={() =>
+                        copyDashboardLink(stall.id)
+                      }
+                    >
+                      Copy Link
+                    </button>
+
+                    <button
+                      className="btn-danger"
+                      onClick={() => removeStall(stall)}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               </td>
             </tr>
